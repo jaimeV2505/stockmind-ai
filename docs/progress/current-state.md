@@ -1,6 +1,6 @@
 # Current state (update every session)
 
-Last updated: 2026-10-09 · Session 6 = alerts, entitlements, news safety, point-in-time fundamentals (see docs/progress/reliability-evidence.md); Session 5 = strategies/scanner, walk-forward, pattern engine; Session 4 = quant engines (risk, signal lifecycle, backtester); Session 3 = independent audit + hardening (claude.ai sandbox: no network, no pytest/ruff/TA-Lib/Docker, no GitHub access)
+Last updated: 2026-10-09 · Session 7 = web app v0 (apps/web); Session 6 = alerts, entitlements, news safety, point-in-time fundamentals (see docs/progress/reliability-evidence.md); Session 5 = strategies/scanner, walk-forward, pattern engine; Session 4 = quant engines (risk, signal lifecycle, backtester); Session 3 = independent audit + hardening (claude.ai sandbox: no network, no pytest/ruff/TA-Lib/Docker, no GitHub access)
 
 **Read `docs/progress/audit-2026-10-09.md` first. Verdict: NOT production-ready.**
 
@@ -27,6 +27,18 @@ Last updated: 2026-10-09 · Session 6 = alerts, entitlements, news safety, point
   (b) truncate exactly at every trigger bar. NOTE: stale `.pyc` caches can make mutation runs lie; run with `PYTHONDONTWRITEBYTECODE=1`.
 
 - Lint: `ruff` has STILL never been run. An AST-based sweep approximating ruff's default rules (E4/E7/E9/F) found and fixed 8x E702 (semicolons), 1x E731, 1 E701-style stub, and unused imports/locals. It is an approximation: expect some residual ruff findings on the first real run.
+
+## Session 7 additions: `apps/web` (Next.js demo, see ADR-0012 and apps/web/README.md)
+- Pages: `/es|en` dashboard (symbols table, explicit NO SIGNAL state), `/es|en/stock/[symbol]` (candlestick SVG chart, EMA/SMA/Bollinger/volume/RSI/MACD toggles
+  persisted in localStorage, entry-flag markers, strategy decisions, simulated backtests with equity curves and trades, historical-pattern matches with
+  disclaimers, risk example), `/es|en/method`. Mode banner on every page; error state on invalid data; real 404 for unknown symbols.
+- Data: `scripts/export_demo_snapshot.py` -> `apps/web/data/demo-snapshot.json` (deterministic, 5 fictional symbols, 252 daily bars each); a Python test keeps it reproducible.
+- Verified offline: `lib/` under `tsc --strict` (0 errors) + 9 `node --test` tests; all components rendered with real React 19 and opened in headless
+  Chromium (7 pages x desktop/mobile): no horizontal overflow, banner present, one h1, tables captioned, svg labelled, toggles add/remove overlays, no NaN/undefined leaks.
+  The render harness itself was mutation-checked (11 planted UI defects, all caught). Two real defects were found by looking at screenshots (clipped axis label,
+  untranslated engine text) and fixed.
+- NOT verified: `next build` (no network), TSX against real `@types/react`, client-side interactivity in a browser, Lighthouse/axe, real Vercel deploy.
+- NOT built: auth, DB, API, live data, Lightweight Charts, Tailwind/shadcn, TanStack Query, scanner/alerts/portfolio/admin UI, PWA, e2e (Playwright) suite.
 
 ## Session 6 additions (pure logic only; no I/O, no providers, no LLM calls, no DB)
 - `stockmind_alerts`: rule evaluation (price cross, RSI threshold, volume spike, strategy signal) with human-readable "why"; `Dispatcher` with idempotency,

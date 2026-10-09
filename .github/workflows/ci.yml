@@ -23,5 +23,18 @@ jobs:
         run: pip install ${{ matrix.pins }}
       - run: ruff check .
       - run: python -m pytest -v
-  # TODO(Phase 1): web (lint, typecheck, build, playwright), api (pytest + migrations check),
+      - run: python scripts/export_demo_snapshot.py --check
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults: { run: { working-directory: apps/web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: npm install --no-audit --no-fund          # TODO: commit package-lock.json after the first install, then use `npm ci`
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+  # TODO(Phase 1): web (eslint, playwright e2e), api (pytest + migrations check),
   # dependency scanning (pip-audit), secret scanning (gitleaks), TA-Lib cross-validation job.

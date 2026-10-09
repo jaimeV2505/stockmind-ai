@@ -1,5 +1,9 @@
 # Next tasks (ordered)
 
+> Web app v0 exists (apps/web). FIRST ACTION on a networked machine: `cd apps/web && npm install && npm run typecheck && npm test && npm run build`; fix whatever the real
+> Next/React types and build surface, commit `package-lock.json`, then import into Vercel (Root Directory = apps/web).
+
+
 > Session 6 completed the pure-logic modules for alerts, entitlements, news safety and fundamentals. Everything below that needs network, a database,
 > credentials or Node is BLOCKED in the authoring sandbox and should be done with Claude Code on a networked machine.
  — see docs/progress/audit-2026-10-09.md for finding IDs
@@ -21,3 +25,5 @@
 11. Persistence: SQL migrations mirroring ADR-0011 (UNIQUE(event_key, channel), conditional status UPDATE, atomic usage counters), RLS policies with policy tests.
 12. Remaining strategies (7), short side, portfolio-level backtests, multiple-testing correction, market-structure detectors.
 13. Load/soak/failure-injection tests and a property-based layer (hypothesis) once dependencies can be installed.
+14. Web: swap SVG chart for Lightweight Charts, add Tailwind/shadcn, Playwright e2e (toggle persistence, locale switch, mobile nav), axe/Lighthouse, eslint, security headers/CSP review.
+15. Web: replace the snapshot with a typed API client once `apps/api` exists (keep the validator; keep the data-mode banner; keep error-not-fallback behaviour).

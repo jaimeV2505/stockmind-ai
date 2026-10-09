@@ -11,6 +11,9 @@ make test
 ```
 No pytest? `make test-stdlib` (= `scripts/run_stdlib_tests.sh`) runs every service's suite with `unittest` and prints a per-service summary.
 
+## Web app
+`apps/web` is a Next.js demo over simulated data: see `apps/web/README.md` (run locally, Vercel import steps, verification status).
+
 ## Layout
 `services/*` = pure-Python domain modules (framework-free). `apps/*` = deployables (not yet implemented).
 Read `CLAUDE.md` first when continuing work.
