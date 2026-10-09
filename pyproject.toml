@@ -1,0 +1,16 @@
+[project]
+name = "stockmind-ai"
+version = "0.0.1"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26", "pandas>=2.2"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[tool.pytest.ini_options]
+pythonpath = ["services/technical-analysis", "services/market-data"]
+testpaths = ["services/technical-analysis/tests", "services/market-data/tests"]
+
+[tool.ruff]
+line-length = 110
+extend-exclude = ["apps/web"]
