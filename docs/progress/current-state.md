@@ -28,6 +28,14 @@ Last updated: 2026-10-09 · Session 7 = web app v0 (apps/web); Session 6 = alert
 
 - Lint: `ruff` has STILL never been run. An AST-based sweep approximating ruff's default rules (E4/E7/E9/F) found and fixed 8x E702 (semicolons), 1x E731, 1 E701-style stub, and unused imports/locals. It is an approximation: expect some residual ruff findings on the first real run.
 
+## Session 8 additions: real-data path (see ADR-0013, docs/operations/real-market-data.md)
+- `AlpacaDailyBars` adapter (19 fixture tests, 16 planted bugs caught), exporter `--source market` (fail-loud, excludes symbols that fail the quality gate, exit codes 0/1/2/3),
+  `config/universe.json`, daily workflow `.github/workflows/market-data.yml` (refuses to run in a public repo), web: delayed/real banner, excluded-symbols panel, mode-aware copy,
+  explicit `STOCKMIND_DATA` selection, fail-closed Basic-auth middleware, "unavailable" banner that claims no data origin.
+- Tests: Python 284 -> see `make test-stdlib`; web: 17 node tests + browser harness over 12 pages x 2 viewports incl. real-data mode (produced by the real pipeline on a SYNTHETIC transport).
+  13 planted web/access defects caught; 2 survivors analysed (one redundant guard now pinned by message, one timing property that cannot be unit-tested).
+- NEVER exercised: the real Alpaca API (no network/keys here), a real private-repo workflow run, Vercel with env vars/middleware.
+
 ## Session 7 additions: `apps/web` (Next.js demo, see ADR-0012 and apps/web/README.md)
 - Pages: `/es|en` dashboard (symbols table, explicit NO SIGNAL state), `/es|en/stock/[symbol]` (candlestick SVG chart, EMA/SMA/Bollinger/volume/RSI/MACD toggles
   persisted in localStorage, entry-flag markers, strategy decisions, simulated backtests with equity curves and trades, historical-pattern matches with

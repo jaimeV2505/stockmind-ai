@@ -1,5 +1,8 @@
 # Next tasks (ordered)
 
+> Real data path is built but UNVERIFIED against Alpaca: follow docs/operations/real-market-data.md; the first real run is the test. Send the Actions log if it fails.
+
+
 > Web app v0 exists (apps/web). FIRST ACTION on a networked machine: `cd apps/web && npm install && npm run typecheck && npm test && npm run build`; fix whatever the real
 > Next/React types and build surface, commit `package-lock.json`, then import into Vercel (Root Directory = apps/web).
 

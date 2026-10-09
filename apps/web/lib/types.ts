@@ -37,8 +37,10 @@ export interface SymbolData {
   symbol: string; name: string; currency: string; exchange: string; candles: Candle[]; indicators: Indicators;
   decisions: Decision[]; markers: Marker[]; backtests: Backtest[]; patterns: Patterns; risk_example: RiskExample;
 }
+export interface Excluded { symbol: string; reason: string }
+export type BannerMode = Mode | "unavailable";
 export interface Meta {
   mode: Mode; data_source: string; generated_at: string; as_of: string; timeframe: string; bars_shown: number;
-  symbols_are_fictional: boolean; note: string;
+  symbols_are_fictional: boolean; note: string; feed?: string; adjustment?: string; excluded?: Excluded[];
 }
 export interface Snapshot { schema_version: 1; meta: Meta; symbols: SymbolData[] }

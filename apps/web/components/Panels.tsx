@@ -58,13 +58,13 @@ function EquityChart({ equity, initial, label }: { equity: number[]; initial: nu
   );
 }
 
-export function BacktestPanel({ backtests, locale }: { backtests: Backtest[]; locale: Locale }) {
+export function BacktestPanel({ backtests, locale, simulatedData }: { backtests: Backtest[]; locale: Locale; simulatedData: boolean }) {
   const na = t(locale, "undefinedMetric");
   const pct = (x: number | null) => (x === null ? na : formatPct(x, locale));
   return (
     <section className="card" aria-labelledby="bt-h" data-testid="backtests">
       <h2 id="bt-h">{t(locale, "backtestTitle")}</h2>
-      <p className="note">{t(locale, "backtestNote")}</p>
+      <p className="note">{t(locale, simulatedData ? "backtestNote" : "backtestNoteMarket")}</p>
       <div className="bt-grid">
         {backtests.map((b) => {
           const tr = metric(b, "total_return");
@@ -161,11 +161,11 @@ export function PatternsPanel({ patterns, locale }: { patterns: Patterns; locale
   );
 }
 
-export function RiskPanel({ r, locale }: { r: RiskExample; locale: Locale }) {
+export function RiskPanel({ r, locale, simulatedData }: { r: RiskExample; locale: Locale; simulatedData: boolean }) {
   return (
     <section className="card" aria-labelledby="rk-h" data-testid="risk">
       <h2 id="rk-h">{t(locale, "riskTitle")}</h2>
-      <p className="note">{t(locale, "riskNote")}</p>
+      <p className="note">{t(locale, simulatedData ? "riskNote" : "riskNoteMarket")}</p>
       <dl className="metrics">
         <div><dt>{t(locale, "rEntry")}</dt><dd>{formatPrice(r.entry, locale)}</dd></div>
         <div><dt>{t(locale, "rStop")}</dt><dd>{formatPrice(r.stop, locale)}</dd></div>

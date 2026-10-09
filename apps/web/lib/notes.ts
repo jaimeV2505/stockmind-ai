@@ -11,6 +11,12 @@ const RULES: Rule[] = [
   { test: /^n=(\d+) < 30: no confidence interval/i, es: () => "", en: () => "", redundant: true },
   { test: /^Matches drawn from the same calendar period are correlated/i, es: () => "Las coincidencias de un mismo período están correlacionadas: la muestra efectiva es menor que n.", en: (m) => m.input ?? "" },
   { test: /^very small sample: treat the statistics as anecdotal/i, es: () => "Muestra muy pequeña: trate las estadísticas como anecdóticas.", en: (m) => m.input ?? "" },
+  { test: /^data-quality gate failed: (\d+) missing session\(s\), (\d+) unexpected, (\d+) duplicate\(s\), (\d+) incomplete, mixed provenance=(\w+)/i,
+    es: (m) => `No superó el control de calidad: ${m[1]} sesión(es) sin datos, ${m[2]} inesperada(s), ${m[3]} duplicada(s), ${m[4]} incompleta(s); procedencia mezclada: ${m[5].toLowerCase() === "true" ? "sí" : "no"}.`,
+    en: (m) => `Failed the data-quality gate: ${m[1]} missing session(s), ${m[2]} unexpected, ${m[3]} duplicate(s), ${m[4]} incomplete; mixed provenance: ${m[5].toLowerCase() === "true" ? "yes" : "no"}.` },
+  { test: /^insufficient history: (\d+) completed daily bars, need (\d+)/i,
+    es: (m) => `Historial insuficiente: ${m[1]} barras diarias completas, se necesitan ${m[2]}.`, en: (m) => `Insufficient history: ${m[1]} completed daily bars, ${m[2]} needed.` },
+  { test: /^provider data rejected: (.*)$/is, es: (m) => `Datos del proveedor rechazados: ${m[1]}`, en: (m) => `Provider data rejected: ${m[1]}` },
   { test: /INSUFFICIENT EVIDENCE/i, es: () => "Sin coincidencias históricas: EVIDENCIA INSUFICIENTE.", en: (m) => m.input ?? "" },
 ];
 

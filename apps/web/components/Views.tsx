@@ -2,19 +2,20 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatDateTime, formatPct, formatPrice, signed, tone, formatNumber } from "../lib/format.ts";
 import { messages, t, type Locale } from "../lib/i18n.ts";
+import { localiseNote } from "../lib/notes.ts";
 import type { Loaded } from "../lib/snapshot.ts";
 import { activeSignals, summarize } from "../lib/summary.ts";
-import type { Mode } from "../lib/types.ts";
+import type { BannerMode } from "../lib/types.ts";
 import { ErrorState } from "./ErrorState.tsx";
 import { ModeBanner } from "./ModeBanner.tsx";
 import { BacktestPanel, DecisionsPanel, PatternsPanel, RiskPanel } from "./Panels.tsx";
 import { SiteHeader } from "./SiteHeader.tsx";
 import { StockWorkspace } from "./StockWorkspace.tsx";
 
-export function PageShell({ locale, mode, pathSuffix, children }: { locale: Locale; mode: Mode; pathSuffix: string; children: ReactNode }) {
+export function PageShell({ locale, mode, pathSuffix, children, source = "" }: { locale: Locale; mode: BannerMode; pathSuffix: string; children: ReactNode; source?: string }) {
   return (
     <>
-      <ModeBanner locale={locale} mode={mode} />
+      <ModeBanner locale={locale} mode={mode} source={source} />
       <SiteHeader locale={locale} pathSuffix={pathSuffix} />
       <main id="main">{children}</main>
       <footer className="site-footer">{t(locale, "footer")}</footer>
@@ -22,8 +23,8 @@ export function PageShell({ locale, mode, pathSuffix, children }: { locale: Loca
   );
 }
 
-/** When data cannot be loaded the shell still says what mode we are in: the failed state is never mistaken for live data. */
-const FALLBACK_MODE: Mode = "simulated";
+/** When data cannot be loaded the banner claims NO data origin (never "simulated" and never "real"). */
+const FALLBACK_MODE: BannerMode = "unavailable";
 
 export function DashboardView({ locale, loaded }: { locale: Locale; loaded: Loaded }) {
   if (!loaded.ok) {
@@ -32,18 +33,27 @@ export function DashboardView({ locale, loaded }: { locale: Locale; loaded: Load
   const { meta, symbols } = loaded.data;
   const rows = symbols.map(summarize);
   const signals = activeSignals(symbols);
+  const sim = meta.mode === "simulated";
   return (
-    <PageShell locale={locale} mode={meta.mode} pathSuffix="">
-      <h1>{t(locale, "dashboardTitle")}</h1>
-      <p className="lead">{t(locale, "dashboardIntro")}</p>
+    <PageShell locale={locale} mode={meta.mode} pathSuffix="" source={meta.data_source}>
+      <h1>{t(locale, sim ? "dashboardTitle" : "dashboardTitleMarket")}</h1>
+      <p className="lead">{t(locale, sim ? "dashboardIntro" : "dashboardIntroMarket")}</p>
       <p className="meta" data-testid="freshness">
         {t(locale, "dataAsOf")}: <time dateTime={meta.as_of}>{formatDateTime(meta.as_of, locale)}</time> · {t(locale, "generated")}: <time dateTime={meta.generated_at}>{formatDateTime(meta.generated_at, locale)}</time> · {meta.data_source}
+        {meta.feed ? ` · ${t(locale, "feedLabel")}: ${meta.feed}` : ""}
       </p>
+      {meta.excluded && meta.excluded.length > 0 ? (
+        <section className="card" aria-labelledby="ex-h" data-testid="excluded">
+          <h2 id="ex-h">{t(locale, "excludedTitle")}</h2>
+          <p className="note">{t(locale, "excludedBody")}</p>
+          <ul>{meta.excluded.map((e) => <li key={e.symbol}><strong>{e.symbol}</strong>: {localiseNote(locale, e.reason).text}</li>)}</ul>
+        </section>
+      ) : null}
       <section className="card" aria-labelledby="mk-h">
         <h2 id="mk-h">{t(locale, "navDashboard")}</h2>
         <div className="table-wrap">
           <table data-testid="symbols-table">
-            <caption className="sr-only">{t(locale, "dashboardTitle")}</caption>
+            <caption className="sr-only">{t(locale, sim ? "dashboardTitle" : "dashboardTitleMarket")}</caption>
             <thead>
               <tr>
                 <th scope="col">{t(locale, "colSymbol")}</th><th scope="col">{t(locale, "colName")}</th>
@@ -92,7 +102,7 @@ export function StockView({ locale, loaded, symbol }: { locale: Locale; loaded: 
   const data = loaded.data.symbols.find((s) => s.symbol === symbol);
   if (!data) {
     return (
-      <PageShell locale={locale} mode={loaded.data.meta.mode} pathSuffix="">
+      <PageShell locale={locale} mode={loaded.data.meta.mode} pathSuffix="" source={loaded.data.meta.data_source}>
         <h1>{t(locale, "notFoundTitle")}</h1>
         <p><Link href={`/${locale}`}>{t(locale, "stockBack")}</Link></p>
       </PageShell>
@@ -100,7 +110,7 @@ export function StockView({ locale, loaded, symbol }: { locale: Locale; loaded: 
   }
   const row = summarize(data);
   return (
-    <PageShell locale={locale} mode={loaded.data.meta.mode} pathSuffix={suffix}>
+    <PageShell locale={locale} mode={loaded.data.meta.mode} pathSuffix={suffix} source={loaded.data.meta.data_source}>
       <p><Link href={`/${locale}`}>← {t(locale, "stockBack")}</Link></p>
       <h1>{data.symbol} <span className="muted">{data.name}</span></h1>
       <p className="meta" data-testid="stock-summary">
@@ -109,18 +119,19 @@ export function StockView({ locale, loaded, symbol }: { locale: Locale; loaded: 
       </p>
       <StockWorkspace data={data} locale={locale} />
       <DecisionsPanel decisions={data.decisions} locale={locale} />
-      <BacktestPanel backtests={data.backtests} locale={locale} />
+      <BacktestPanel backtests={data.backtests} locale={locale} simulatedData={loaded.data.meta.mode === "simulated"} />
       <PatternsPanel patterns={data.patterns} locale={locale} />
-      <RiskPanel r={data.risk_example} locale={locale} />
+      <RiskPanel r={data.risk_example} locale={locale} simulatedData={loaded.data.meta.mode === "simulated"} />
     </PageShell>
   );
 }
 
-export function MethodView({ locale, mode }: { locale: Locale; mode: Mode }) {
+export function MethodView({ locale, mode, source = "" }: { locale: Locale; mode: BannerMode; source?: string }) {
+  const body = mode === "simulated" ? messages[locale].methodBody : messages[locale].methodBodyMarket;
   return (
-    <PageShell locale={locale} mode={mode} pathSuffix="/method">
+    <PageShell locale={locale} mode={mode} pathSuffix="/method" source={source}>
       <h1>{t(locale, "methodTitle")}</h1>
-      <ul className="notes">{messages[locale].methodBody.map((p) => <li key={p}>{p}</li>)}</ul>
+      <ul className="notes">{mode === "unavailable" ? <li>{t(locale, "bannerUnavailable")}</li> : body.map((p) => <li key={p}>{p}</li>)}</ul>
     </PageShell>
   );
 }

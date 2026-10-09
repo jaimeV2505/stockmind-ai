@@ -64,6 +64,7 @@ test("loadFromText returns an error object (never throws, never invents data) fo
 test("i18n: both locales define every key, no blanks, no leftover placeholders", () => {
   const keys = Object.keys(messages.es).sort();
   assert.deepEqual(Object.keys(messages.en).sort(), keys);
+  assert.ok(keys.includes("methodBodyMarket") && keys.includes("bannerUnavailable"));
   for (const l of LOCALES) for (const k of keys) {
     const v = (messages[l] as Record<string, unknown>)[k];
     if (typeof v === "string") assert.ok(v.trim().length > 0, `${l}.${k}`);
@@ -71,6 +72,9 @@ test("i18n: both locales define every key, no blanks, no leftover placeholders",
   }
   assert.equal(t("en", "chartAria", { symbol: "SIMA", n: 252 }), "Candlestick chart of SIMA, 252 sessions");
   assert.ok(!t("es", "pMedian", { h: 10 }).includes("{"));
+  assert.match(t("es", "bannerDelayed", { source: "alpaca-iex" }), /alpaca-iex/);
+  assert.ok(!t("en", "bannerDelayed", { source: "alpaca-iex" }).includes("{"));
+  assert.doesNotMatch(messages.es.bannerDelayed + messages.en.bannerDelayed, /SIMULAD|SIMULATED/);
   assert.match(messages.es.bannerSimulated, /SIMULADOS/);
   assert.match(messages.en.bannerSimulated, /SIMULATED/);
 });
@@ -181,4 +185,13 @@ test("engine notes: known ones are localised, redundant ones hidden, unknown one
       if (loc === "es") for (const x of shown) assert.ok(!/signal on the last bar|calendar period are correlated|anecdotal/.test(x), `untranslated engine text in es: ${x}`);
     }
   }
+});
+
+test("exclusion reasons from the pipeline are localised and keep their numbers", () => {
+  const r = "data-quality gate failed: 5 missing session(s), 0 unexpected, 1 duplicate(s), 2 incomplete, mixed provenance=False";
+  assert.match(localiseNote("es", r).text, /^No superó el control de calidad: 5 sesión\(es\) sin datos, 0 inesperada\(s\), 1 duplicada\(s\), 2 incompleta\(s\); procedencia mezclada: no\.$/);
+  assert.match(localiseNote("en", r.replace("False", "True")).text, /mixed provenance: yes\.$/);
+  assert.match(localiseNote("es", "insufficient history: 100 completed daily bars, need 312").text, /^Historial insuficiente: 100 .* 312\.$/);
+  assert.match(localiseNote("es", "provider data rejected: AAPL: duplicate daily bar for 2026-10-01").text, /^Datos del proveedor rechazados: AAPL: duplicate/);
+  assert.equal(localiseNote("es", r).known, true);
 });

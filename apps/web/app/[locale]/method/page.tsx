@@ -13,5 +13,5 @@ export default async function Page({ params }: { params: Promise<{ locale: strin
   const { locale: raw } = await params;
   const locale = isLocale(raw) ? raw : DEFAULT_LOCALE;
   const loaded = loadSnapshotFile();
-  return <MethodView locale={locale} mode={loaded.ok ? loaded.data.meta.mode : "simulated"} />;
+  return <MethodView locale={locale} mode={loaded.ok ? loaded.data.meta.mode : "unavailable"} source={loaded.ok ? loaded.data.meta.data_source : ""} />;
 }

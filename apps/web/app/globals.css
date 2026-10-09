@@ -6,7 +6,7 @@ a{color:var(--link)}a:focus-visible,input:focus-visible,summary:focus-visible{ou
 .skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;background:#fff;color:#000;padding:6px 10px;z-index:10}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .banner{padding:8px 16px;text-align:center;font-size:13px;position:sticky;top:0;z-index:5;border-bottom:1px solid #000}
-.banner-simulated{background:var(--amber);color:#1a1200}.banner-delayed{background:var(--blue);color:#001226}.banner-live{background:var(--up);color:#00180d}
+.banner-simulated{background:var(--amber);color:#1a1200}.banner-delayed{background:var(--blue);color:#001226}.banner-live{background:var(--up);color:#00180d}.banner-unavailable{background:var(--down);color:#fff}
 .site-header{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--card)}
 .site-header .brand{font-weight:700;color:var(--text);text-decoration:none;margin-right:8px}
 .site-header nav{display:flex;gap:14px}.site-header .locales{margin-left:auto}

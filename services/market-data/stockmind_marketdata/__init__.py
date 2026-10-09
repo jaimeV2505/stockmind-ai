@@ -6,6 +6,9 @@ from .models import (
     Timeframe,
 )
 from .provider import MarketDataProvider
+from .alpaca import (
+    AlpacaDailyBars, ProviderAuthError, ProviderConfigError, ProviderDataError, ProviderError, ProviderUnavailable,
+)
 from .demo import DemoProvider
 from .quality import QualityReport, validate_series
 from .calendar import (
@@ -14,6 +17,7 @@ from .calendar import (
 )
 
 __all__ = [
+    "AlpacaDailyBars", "ProviderAuthError", "ProviderConfigError", "ProviderDataError", "ProviderError", "ProviderUnavailable",
     "AdjustmentStatus", "Candle", "DataMode", "Timeframe", "MarketDataProvider",
     "DemoProvider", "QualityReport", "validate_series",
     "to_market_time", "session_open_utc", "session_close_utc", "is_trading_day", "is_early_close",

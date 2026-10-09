@@ -14,7 +14,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { locale: raw, symbol } = await params;
   const locale = isLocale(raw) ? raw : DEFAULT_LOCALE;
-  return { title: `${symbol} — ${t(locale, "appName")}`, description: t(locale, "bannerSimulated") };
+  return { title: `${symbol} — ${t(locale, "appName")}`, description: t(locale, "footer") };
 }
 
 export default async function Page({ params }: { params: Params }) {

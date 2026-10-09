@@ -111,6 +111,16 @@ export function parseSnapshot(raw: unknown): Snapshot {
   if (root.schema_version !== 1) throw new SnapshotError("$.schema_version", `unsupported schema version ${String(root.schema_version)}`);
   const meta = rec(root.meta, "$.meta");
   if (meta.mode !== "simulated" && meta.mode !== "delayed" && meta.mode !== "live") throw new SnapshotError("$.meta.mode", "unknown data mode");
+  if ((meta.mode === "simulated") !== (meta.symbols_are_fictional === true)) {
+    throw new SnapshotError("$.meta", "mode and symbols_are_fictional disagree: simulated data must use fictional symbols and real data must not claim to be fictional");
+  }
+  if (meta.excluded !== undefined) {
+    arr(meta.excluded, "$.meta.excluded").forEach((e, i) => {
+      const r = rec(e, `$.meta.excluded[${i}]`);
+      str(r.symbol, `$.meta.excluded[${i}].symbol`);
+      str(r.reason, `$.meta.excluded[${i}].reason`);
+    });
+  }
   iso(meta.generated_at, "$.meta.generated_at");
   iso(meta.as_of, "$.meta.as_of");
   str(meta.data_source, "$.meta.data_source");

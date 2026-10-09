@@ -6,6 +6,7 @@ import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { execFileSync } from "node:child_process";
 
 const require = createRequire(import.meta.url);
 const GLOBAL = process.env.NODE_PATH?.split(path.delimiter)[0] ?? "/home/claude/.npm-global/lib/node_modules";
@@ -47,6 +48,11 @@ const h = React.createElement;
 const raw = fs.readFileSync(path.join(ROOT, "data", "demo-snapshot.json"), "utf8");
 const loaded = loadFromText(raw);
 if (!loaded.ok) throw new Error("real snapshot invalid: " + loaded.error);
+// Real-data mode: produced by the real pipeline (Alpaca adapter + engines) fed by a SYNTHETIC transport. Not market data.
+const fakeOut = path.join(OUT, "fake-market.json");
+execFileSync("python3", [path.join(ROOT, "..", "..", "scripts", "export_demo_snapshot.py"), "--source", "market", "--fake-market", "--out", fakeOut], { stdio: "pipe" });
+const loadedMarket = loadFromText(fs.readFileSync(fakeOut, "utf8"));
+if (!loadedMarket.ok) throw new Error("market pipeline output invalid: " + loadedMarket.error);
 const css = fs.readFileSync(path.join(ROOT, "app", "globals.css"), "utf8");
 const page = (locale, body) => `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>t</title><style>${css}</style></head><body>${body}</body></html>`;
 
@@ -58,7 +64,13 @@ const pages = {
   "method-es": page("es", renderToStaticMarkup(h(MethodView, { locale: "es", mode: "simulated" }))),
   "error-es": page("es", renderToStaticMarkup(h(DashboardView, { locale: "es", loaded: loadFromText('{"schema_version":1,"meta":{}}') }))),
   "unknown-symbol": page("en", renderToStaticMarkup(h(StockView, { locale: "en", loaded, symbol: "NVDA" }))),
+  "market-dashboard-es": page("es", renderToStaticMarkup(h(DashboardView, { locale: "es", loaded: loadedMarket }))),
+  "market-dashboard-en": page("en", renderToStaticMarkup(h(DashboardView, { locale: "en", loaded: loadedMarket }))),
+  "market-stock-es": page("es", renderToStaticMarkup(h(StockView, { locale: "es", loaded: loadedMarket, symbol: "NVDA" }))),
+  "market-method-es": page("es", renderToStaticMarkup(h(MethodView, { locale: "es", mode: "delayed", source: "alpaca-iex" }))),
+  "error-method-es": page("es", renderToStaticMarkup(h(MethodView, { locale: "es", mode: "unavailable" }))),
 };
+const expectedMode = (n) => (n.startsWith("market-") ? "delayed" : n.startsWith("error-") ? "unavailable" : "simulated");
 for (const [n, html] of Object.entries(pages)) fs.writeFileSync(path.join(OUT, `${n}.html`), html);
 
 // ---- 2. assertions on the rendered markup ------------------------------------------------------------------------------------
@@ -69,7 +81,7 @@ const sim = loaded.data.symbols.find((s) => s.symbol === "SIMA");
 
 for (const [n, html] of Object.entries(pages)) {
   check(html.includes('data-testid="mode-banner"'), `${n}: mode banner missing`);
-  check(/data-mode="simulated"/.test(html), `${n}: banner is not in simulated mode`);
+  check(html.includes(`data-mode="${expectedMode(n)}"`), `${n}: banner must be in ${expectedMode(n)} mode`);
   check(count(html, /<h1[ >]/g) === 1, `${n}: expected exactly one <h1>, found ${count(html, /<h1[ >]/g)}`);
   check(count(html, /<table/g) === count(html, /<caption/g), `${n}: every table needs a <caption>`);
   check(!/NaN|undefined|Infinity|\[object Object\]/.test(html.replace(/<style>[\s\S]*?<\/style>/, "")), `${n}: leaked NaN/undefined/[object Object] into the UI`);
@@ -93,6 +105,25 @@ check(/NO SIGNAL|SIN SEÑAL/.test(pages["stock-es"]), "per-strategy NO SIGNAL ro
 check(/no es una probabilidad|NOT a probability|NO es una probabilidad/i.test(pages["stock-es"] + pages["stock-en"]), "pattern similarity disclaimer");
 check(pages["error-es"].includes('data-testid="error-state"') && /role="alert"/.test(pages["error-es"]) && !/class="candle/.test(pages["error-es"]), "invalid snapshot -> error state, no data");
 check(/Symbol not found/.test(pages["unknown-symbol"]) && !/class="candle/.test(pages["unknown-symbol"]), "unknown symbol -> not-found message, no data");
+// ---- real-data (delayed) mode ----
+for (const n of ["market-dashboard-es", "market-dashboard-en", "market-stock-es", "market-method-es"]) {
+  const html = pages[n];
+  // Backtests are simulations by nature even on real prices, so that section is excluded; everything else must not claim a simulated/fictional ORIGIN.
+  const withoutBacktests = html.replace(/<style>[\s\S]*?<\/style>/, "").replace(/<section[^>]*data-testid="backtests"[\s\S]*?<\/section>/g, "");
+  check(!/SIMULAD|SIMULATED|ficticios|fictional|Simulated Co|demo-simulated/i.test(withoutBacktests), `${n}: real-data page still talks about simulated/fictional data: ${(withoutBacktests.match(/.{30}(SIMULAD|SIMULATED|ficticios|fictional|Simulated Co|demo-simulated).{30}/i) ?? [""])[0].replace(/<[^>]+>/g, "|")}`);
+}
+check(/DATOS REALES DE FIN DE DÍA, CON RETRASO/.test(pages["market-dashboard-es"]) && /REAL END-OF-DAY DATA, DELAYED/.test(pages["market-dashboard-en"]), "delayed banner text (es/en)");
+check(/fake-alpaca-dev/.test(pages["market-dashboard-es"]) && /Feed: iex/.test(pages["market-dashboard-es"]), "freshness line must name the source and feed");
+check(pages["market-dashboard-es"].includes('data-testid="excluded"') && /GAPX/.test(pages["market-dashboard-es"]) && /No superó el control de calidad: 5 sesión/.test(pages["market-dashboard-es"]) && /Failed the data-quality gate: 5 missing/.test(pages["market-dashboard-en"]), "excluded symbols must be listed with the reason");
+check(!/href="\/es\/stock\/GAPX"/.test(pages["market-dashboard-es"]), "an excluded symbol must not be linked");
+check(/NVIDIA Corporation/.test(pages["market-dashboard-es"]) && /href="\/es\/stock\/NVDA"/.test(pages["market-dashboard-es"]), "real symbols and names shown");
+check(/Panel de mercado \(cierre diario\)/.test(pages["market-dashboard-es"]) && /Market dashboard \(daily close\)/.test(pages["market-dashboard-en"]), "market titles");
+check(/Simulación histórica sobre datos reales/.test(pages["market-stock-es"]) && /último cierre real/.test(pages["market-stock-es"]), "market backtest/risk notes");
+check(count(pages["market-stock-es"], /<g class="candle (up|down)"/g) === 252, "market stock page draws 252 candles");
+check(!/IEX feed is not the consolidated|feed IEX no es/.test(pages["market-dashboard-es"]) && /feed IEX no es la cinta consolidada/.test(pages["market-method-es"]), "method page must disclose the IEX limitation");
+// unavailable data must claim NO origin
+check(/SIN DATOS/.test(pages["error-es"]) && !/SIMULADOS/.test(pages["error-es"]) && !/DATOS REALES/.test(pages["error-es"]), "error page banner must not claim any data origin");
+check(/SIN DATOS/.test(pages["error-method-es"]) && !/ficticios/.test(pages["error-method-es"]), "method page with unavailable data");
 // overlay toggles are driven by `prefs`: verify the chart honours every switch
 for (const k of ["ema20", "ema50", "sma200", "bollinger", "volume", "entries"]) {
   const on = renderToStaticMarkup(h(CandleChart, { symbol: "SIMA", locale: "en", candles: sim.candles, indicators: sim.indicators, markers: sim.markers, prefs: { ...DEFAULT_PREFS, [k]: true } }));
@@ -123,7 +154,7 @@ for (const [name, vp] of Object.entries(sizes)) {
     check(m.bannerVisible, `${n}@${name}: banner not visible`);
     if (m.chartW !== null) check(m.chartW > vp.width * 0.8 && m.chartW <= vp.width, `${n}@${name}: chart width ${m.chartW} does not fit viewport ${vp.width}`);
     check(errors.length === 0, `${n}@${name}: browser errors: ${errors.join(" | ")}`);
-    if (shotsDir && ["dashboard-es", "stock-es", "error-es"].includes(n)) await p.screenshot({ path: path.join(shotsDir, `${n}-${name}.png`), fullPage: n !== "stock-es" || name === "mobile" ? true : false });
+    if (shotsDir && ["dashboard-es", "stock-es", "error-es", "market-dashboard-es", "market-stock-es"].includes(n)) await p.screenshot({ path: path.join(shotsDir, `${n}-${name}.png`), fullPage: n !== "stock-es" || name === "mobile" ? true : false });
     await p.close();
   }
   await ctx.close();
