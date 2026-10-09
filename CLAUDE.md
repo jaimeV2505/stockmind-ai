@@ -13,6 +13,7 @@ The repository is the source of truth, not chat history. Start with `docs/progre
 - Session/close helpers raise on non-trading days (ADR-0005); never fabricate sessions. Calendar functions take `date`, never `datetime`.
 - Validate at the boundary and reject, don't repair (ADR-0007). Indicators propagate NaN; never skip or fill bars silently.
 - Code must work on pandas>=2.2 AND pandas 3 (read-only `.to_numpy()` views: copy before writing).
+- Backtests: signals execute at the NEXT bar's open (ADR-0008); every result is labelled simulated; never present backtest numbers as expected returns.
 - The latest audit is `docs/progress/audit-2026-10-09.md`; its open findings are the priority backlog.
 - No secrets in git. No real trading in the initial release. No billing activation without explicit approval.
 - Timestamps: timezone-aware UTC internally; convert to America/New_York only for market-session logic.

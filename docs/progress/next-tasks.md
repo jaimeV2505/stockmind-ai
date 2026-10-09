@@ -4,8 +4,10 @@
 2. [BLOCKED: needs TA-Lib] CI job cross-validating indicators vs TA-Lib; cross-check calendar vs `exchange_calendars`; verify `AD_HOC_CLOSURES` on nyse.com. (M-7, M-8)
 3. Decide + implement ingestion gap-repair/re-seed policy for recursive indicators; adapter contract-test suite built on `validate_series`. (M-6)
 4. Pin GitHub Actions by SHA; add pip-audit + gitleaks; re-author git identity. (M-9, L-4)
-5. Remaining Phase 2 indicators/logic: Supertrend, Ichimoku (chikou plot-only, ADR-0006), MA-cross detection, S/R zones & market structure on `swing_points`, causal multi-timeframe resampling.
+5. Strategy registry v1: turn indicators into deterministic, versioned entry/exit flags (e.g. breakout, oversold recovery) returning `NoSignal` when evidence is insufficient; feed `run_backtest` and the signal lifecycle. Then walk-forward/OOS splits + parameter sensitivity on top of the engine (ADR-0008 lists unimplemented parts).
+5b. Remaining Phase 2 indicators/logic: Supertrend, Ichimoku (chikou plot-only, ADR-0006), MA-cross detection, S/R zones & market structure on `swing_points`, causal multi-timeframe resampling.
 6. Alpaca adapter (mocked HTTP tests, rate limiting, retries, entitlement -> `DataMode`; normalises to ADR-0007 rules); `MARKET_DATA_MODE` must fail loudly, never fall back to demo.
-7. Phase 1: Supabase schema + RLS **with policy tests**, FastAPI + authz/entitlement tests, Next.js app.
+6b. Pattern-recognition engine (normalised windows, DTW, kNN, forward returns, MAE/MFE) — pure numpy, buildable and testable without network; strict leakage tests (no overlapping windows, only past-completed outcomes).
+7. [BLOCKED here: needs network, Node, Docker, Postgres] Milestone 1 of the full-stack prompt: Supabase schema + RLS migrations + RLS **with policy tests**, FastAPI + authz/entitlement tests, Next.js app.
 8. Performance: vectorise/numba Wilder smoothing + `swing_points` before intraday universe scans (L-3). Bound `missing_intraday` output (L-6).
 9. Add `docs/product/MASTER_PROMPT.md` (original spec; user-supplied). Legal: data licences, EU/Swedish regulatory opinion, GDPR.

@@ -1,6 +1,6 @@
 # Current state (update every session)
 
-Last updated: 2026-10-09 · Session 3 = independent audit + hardening (claude.ai sandbox: no network, no pytest/ruff/TA-Lib/Docker, no GitHub access)
+Last updated: 2026-10-09 · Session 4 = quant engines (risk, signal lifecycle, backtester); Session 3 = independent audit + hardening (claude.ai sandbox: no network, no pytest/ruff/TA-Lib/Docker, no GitHub access)
 
 **Read `docs/progress/audit-2026-10-09.md` first. Verdict: NOT production-ready.**
 
@@ -18,9 +18,11 @@ Last updated: 2026-10-09 · Session 3 = independent audit + hardening (claude.ai
 - Repo plumbing: `pyproject.toml`, `Makefile`, `docker-compose.yml` (Postgres+pgvector only), `.env.example`,
   `.github/workflows/ci.yml`, CLAUDE.md, docs, ADRs 0001-0006.
 
-## Tests (stdlib `unittest`, Python 3.12.3, numpy 2.4.4, pandas 3.0.2; run at end of session 3)
-- technical-analysis: **45 passed**. market-data: **43 passed**. Total 88, 0 failures.
+## Tests (stdlib `unittest`, Python 3.12.3, numpy 2.4.4, pandas 3.0.2; run at end of session 4)
+- technical-analysis 45 · market-data 43 · portfolio-analytics (risk) 11 · signal-engine 11 · backtesting 21 → **131 passed, 0 failed**.
 - Session-3 regression tests were run against the unfixed code first: 20 failures; 0 after the fixes.
+- Session-4 backtester mutation-checked: 4 planted bugs (same-bar execution = look-ahead, stop-gap fill at stop, favourable sell slippage,
+  missing exit commission) were each caught by at least one test.
 - Mutation-checked: a planted look-ahead in `swing_points` and a planted wrong DM rule in ADX were both detected
   (the first was initially MISSED by a single-cut causality test; tests now truncate at many cut points).
 - Independent references: RSI (pure-Python Wilder), ADX (Wilder's original running-sum form), plus hand-computed CCI/MFI/VWAP/HV/OBV/Bollinger.
@@ -32,10 +34,21 @@ Last updated: 2026-10-09 · Session 3 = independent audit + hardening (claude.ai
   The "published RSI example" values are from memory and used only as a loose sanity check (delta 0.1).
 - NYSE `AD_HOC_CLOSURES` (2012-10-29/30, 2018-12-05, 2025-01-09) and the early-close rules are from memory; verify against the
   official NYSE calendar. Calendar is regular-session only; 1h and 1w gap detection NOT implemented (`gap_check_performed=False`).
-- Not yet implemented: Supertrend, Ichimoku, SMA 100/200 convenience sets, moving-average cross detection, support/resistance zones,
+- Not yet implemented (see also the Session 4 list above): Supertrend, Ichimoku, SMA 100/200 convenience sets, moving-average cross detection, support/resistance zones,
   market-structure (BOS, HH/HL), patterns, multi-timeframe aggregation, and everything in Phases 1-6 (web, API, auth, DB, providers,
   scanner, signals, backtester, news, alerts).
 - No real provider adapter. Nothing deployed. Not pushed to GitHub (no access from the authoring sandbox).
+
+## Session 4 additions (framework-free, pure Python; NOT yet exposed through any API/UI/DB)
+- `services/portfolio-analytics/stockmind_risk`: ATR stop reference, risk/reward with geometry validation, whole-share position sizing
+  (min of risk budget / concentration cap / liquidity cap, reports the binding constraint).
+- `services/signal-engine/stockmind_signals`: lifecycle state machine (WATCHING/AWAITING_CONFIRMATION/CONFIRMED/INVALIDATED/EXPIRED/CLOSED),
+  immutable audited transitions, `NoSignal`, deterministic idempotency key (symbol, strategy id+version, timeframe, trigger ts), in-memory registry
+  defining the persistence contract. Exhaustive transition-matrix test.
+- `services/backtesting/stockmind_backtest`: single-symbol long-only engine per ADR-0008, metrics (return, CAGR>=1y, win rate, PF, drawdown,
+  expectancy, exposure, Sharpe>=30 bars, buy&hold benchmark), reproducibility hash, accounting-identity and truncation-causality tests.
+- NOT implemented: strategies themselves (no strategy produces flags yet), scanner, shorts, portfolio-level/multi-symbol backtests,
+  walk-forward/OOS splits, parameter sensitivity, pattern engine, gap-risk/earnings warnings, correlation/sector exposure.
 
 ## Session 3 hardening (details in the audit report)
 - Candle: finite/valid-identifier/ingest-time validation; `key` includes exchange. `freshness()` now session-aware.
