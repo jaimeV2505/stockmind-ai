@@ -6,7 +6,7 @@ import random
 from datetime import date, datetime, timedelta, timezone
 from typing import Sequence
 
-from .calendar import session_open_utc, to_market_time
+from .calendar import is_trading_day, session_open_utc, to_market_time
 from .models import AdjustmentStatus, Candle, DataMode, Timeframe
 
 
@@ -30,7 +30,7 @@ class DemoProvider:
         d = to_market_time(start).date()
         last = to_market_time(end).date()
         while d <= last:
-            if d.weekday() < 5:
+            if is_trading_day(d):
                 ret = rng.gauss(0.0004, 0.015)
                 o = price
                 c = max(0.01, o * math.exp(ret))

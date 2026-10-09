@@ -8,7 +8,9 @@ The repository is the source of truth, not chat history. Start with `docs/progre
 - Never fabricate data, statistics, backtest results, deployments or test outcomes.
 - Simulated data is always labelled (`DataMode.SIMULATED`, source ends in `-simulated`) and never substitutes silently for live data.
 - Indicators are deterministic math (numpy/pandas). LLMs only explain/summarise; they never compute numbers, execute trades, or override risk rules.
-- All indicator code must be causal (no look-ahead); `TestNoLookahead` must keep covering every new indicator.
+- All indicator code must be causal (no look-ahead); the causal tests (many truncation cut points) must cover every new indicator. Sparse/pivot-style signals are reported on their confirmation bar (ADR-0006).
+- Before trusting new tests, mutation-check them: plant a bug, confirm a test fails, restore.
+- Session/close helpers raise on non-trading days (ADR-0005); never fabricate sessions.
 - No secrets in git. No real trading in the initial release. No billing activation without explicit approval.
 - Timestamps: timezone-aware UTC internally; convert to America/New_York only for market-session logic.
 

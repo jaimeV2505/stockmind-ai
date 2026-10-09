@@ -158,10 +158,12 @@ class TestNoLookahead(unittest.TestCase):
                 **{f"bb_{k}": s for k, s in bollinger(c).items()},
             }
 
-        full, part = compute(slice(None)), compute(slice(0, cut))
-        for name, s in part.items():
-            np.testing.assert_allclose(full[name].iloc[:cut].to_numpy(), s.to_numpy(),
-                                       equal_nan=True, err_msg=name)
+        full = compute(slice(None))
+        for cut_at in range(60, n, 7):   # many cut points, not one (see batch-2 note on sparse signals)
+            part = compute(slice(0, cut_at))
+            for name, s in part.items():
+                np.testing.assert_allclose(full[name].iloc[:cut_at].to_numpy(), s.to_numpy(),
+                                           equal_nan=True, err_msg=f"{name} @cut={cut_at}")
 
 
 if __name__ == "__main__":

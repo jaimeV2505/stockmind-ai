@@ -102,3 +102,120 @@ def relative_volume(volume: pd.Series, n: int = 20) -> pd.Series:
     """Volume / mean volume of the PREVIOUS n bars (current bar excluded to avoid self-dilution)."""
     _check_n(n)
     return volume / sma(volume, n).shift(1)
+
+
+# --------------------------------------------------------------------------------------
+# Batch 2 (session 2)
+# --------------------------------------------------------------------------------------
+
+def adx(high: pd.Series, low: pd.Series, close: pd.Series, n: int = 14) -> pd.DataFrame:
+    """Wilder's ADX / +DI / -DI.
+
+    Convention: TR and DM are both undefined on bar 0 (DM needs a prior bar), so Wilder smoothing is seeded at
+    bar n (mean of bars 1..n). ADX = Wilder-smoothed DX, first value at bar 2n-1. Ratios are scale-free so the
+    mean-seed form is equivalent to Wilder's original sum-seed form.
+    """
+    _check_n(n)
+    up, down = high.diff(), -low.diff()
+    plus_dm = pd.Series(np.where((up > down) & (up > 0), up, 0.0), index=high.index).where(up.notna())
+    minus_dm = pd.Series(np.where((down > up) & (down > 0), down, 0.0), index=high.index).where(down.notna())
+    tr = true_range(high, low, close).where(up.notna())
+    s_tr, s_p, s_m = _wilder(tr, n), _wilder(plus_dm, n), _wilder(minus_dm, n)
+    plus_di = 100.0 * s_p / s_tr
+    minus_di = 100.0 * s_m / s_tr
+    denom = plus_di + minus_di
+    dx = (100.0 * (plus_di - minus_di).abs() / denom).where(denom != 0, 0.0).where(plus_di.notna())
+    return pd.DataFrame({"plus_di": plus_di, "minus_di": minus_di, "adx": _wilder(dx, n)})
+
+
+def cci(high: pd.Series, low: pd.Series, close: pd.Series, n: int = 20) -> pd.Series:
+    """Lambert's CCI: (TP - SMA(TP)) / (0.015 * mean absolute deviation). Flat window (MAD=0) -> 0."""
+    _check_n(n)
+    tp = (high + low + close) / 3.0
+    mean = sma(tp, n)
+    x = tp.to_numpy(dtype=float)
+    mad = np.full(len(x), np.nan)
+    if len(x) >= n:
+        win = np.lib.stride_tricks.sliding_window_view(x, n)
+        mad[n - 1:] = np.abs(win - win.mean(axis=1, keepdims=True)).mean(axis=1)
+    mad = pd.Series(mad, index=close.index)
+    out = (tp - mean) / (0.015 * mad)
+    return out.where(mad != 0, 0.0).where(mad.notna())
+
+
+def keltner(high: pd.Series, low: pd.Series, close: pd.Series, n: int = 20, atr_n: int = 10,
+            mult: float = 2.0) -> pd.DataFrame:
+    """Keltner Channels: EMA(close, n) +/- mult * ATR(atr_n)."""
+    mid = ema(close, n)
+    width = mult * atr(high, low, close, atr_n)
+    return pd.DataFrame({"mid": mid, "upper": mid + width, "lower": mid - width})
+
+
+def historical_volatility(close: pd.Series, n: int = 20, periods_per_year: int = 252) -> pd.Series:
+    """Annualised close-to-close volatility as a FRACTION (0.25 = 25%). Sample std (ddof=1) of log returns."""
+    _check_n(n)
+    if n < 2:
+        raise ValueError("n must be >= 2")
+    logret = np.log(close / close.shift(1))
+    return logret.rolling(n, min_periods=n).std(ddof=1) * np.sqrt(periods_per_year)
+
+
+def mfi(high: pd.Series, low: pd.Series, close: pd.Series, volume: pd.Series, n: int = 14) -> pd.Series:
+    """Money Flow Index. Bars where typical price is unchanged contribute to neither side.
+    No negative flow -> 100; no flow at all -> 50 (convention)."""
+    _check_n(n)
+    tp = (high + low + close) / 3.0
+    raw = tp * volume
+    d = tp.diff()
+    pos = raw.where(d > 0, 0.0).where(d.notna())
+    neg = raw.where(d < 0, 0.0).where(d.notna())
+    p = pos.rolling(n, min_periods=n).sum()
+    m = neg.rolling(n, min_periods=n).sum()
+    out = 100.0 - 100.0 / (1.0 + p / m)
+    out = out.where(m != 0, 100.0)
+    out = out.where(~((m == 0) & (p == 0)), 50.0)
+    return out.where(p.notna())
+
+
+def stoch_rsi(close: pd.Series, rsi_n: int = 14, stoch_n: int = 14, k: int = 3, d: int = 3) -> pd.DataFrame:
+    """Stochastic RSI on a 0-100 scale. Raw %K is UNDEFINED (NaN) when RSI is constant over the window."""
+    r = rsi(close, rsi_n)
+    lo = r.rolling(stoch_n, min_periods=stoch_n).min()
+    hi = r.rolling(stoch_n, min_periods=stoch_n).max()
+    span = hi - lo
+    raw = (100.0 * (r - lo) / span).where(span > 0)
+    kk = sma(raw, k)
+    return pd.DataFrame({"raw": raw, "k": kk, "d": sma(kk, d)})
+
+
+def vwap(high: pd.Series, low: pd.Series, close: pd.Series, volume: pd.Series,
+         session: pd.Series) -> pd.Series:
+    """Session-anchored VWAP: cumulative sum(TP*vol)/sum(vol), reset whenever `session` changes.
+    `session` is a label aligned to the bars (e.g. the US/Eastern trade date). Zero cumulative volume -> NaN."""
+    tp = (high + low + close) / 3.0
+    pv = (tp * volume).groupby(session).cumsum()
+    vv = volume.groupby(session).cumsum()
+    return (pv / vv).where(vv > 0)
+
+
+def swing_points(high: pd.Series, low: pd.Series, k: int = 2) -> pd.DataFrame:
+    """Causal fractal pivots. A pivot high at bar i needs high[i] strictly greater than the k bars on EACH side,
+    so it is only knowable at bar i+k. The pivot price is therefore reported on its CONFIRMATION bar (i+k) and
+    `*_bars_ago` (= k) says where it really occurred. Ties do not form pivots. Never plot at confirmation bar."""
+    _check_n(k)
+    h, l = high.to_numpy(dtype=float), low.to_numpy(dtype=float)
+    n = len(h)
+    ph = np.full(n, np.nan)
+    pl = np.full(n, np.nan)
+    for i in range(k, n - k):
+        left_h, right_h = h[i - k:i], h[i + 1:i + k + 1]
+        if h[i] > left_h.max() and h[i] > right_h.max():
+            ph[i + k] = h[i]
+        left_l, right_l = l[i - k:i], l[i + 1:i + k + 1]
+        if l[i] < left_l.min() and l[i] < right_l.min():
+            pl[i + k] = l[i]
+    idx = high.index
+    return pd.DataFrame({
+        "pivot_high": ph, "pivot_high_bars_ago": np.where(np.isnan(ph), np.nan, float(k)),
+        "pivot_low": pl, "pivot_low_bars_ago": np.where(np.isnan(pl), np.nan, float(k)),
+    }, index=idx)
