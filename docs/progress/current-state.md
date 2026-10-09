@@ -28,6 +28,12 @@ Last updated: 2026-10-09 · Session 7 = web app v0 (apps/web); Session 6 = alert
 
 - Lint: `ruff` has STILL never been run. An AST-based sweep approximating ruff's default rules (E4/E7/E9/F) found and fixed 8x E702 (semicolons), 1x E731, 1 E701-style stub, and unused imports/locals. It is an approximation: expect some residual ruff findings on the first real run.
 
+## Session 9: public-repo data policy (ADR-0014)
+- Alpaca forbids redistributing its data; the repo is public, so market data is never committed: workflow now exports -> builds -> deploys to Vercel from Actions
+  (`.github/workflows/market-data.yml`), git-ignored snapshot, Git-triggered deploys of `main` disabled (`apps/web/vercel.json`), `dynamicParams=false` on stock pages.
+- `tests/integration/test_repo_policy.py` enforces it (7 tests; 11 planted violations caught). Workflow embedded policy script tested with synthetic env files.
+- NOT verified: the Vercel CLI sequence, the real Alpaca API, a real Actions run. Python tests: 317; web: 17 + 12-page browser harness.
+
 ## Session 8 additions: real-data path (see ADR-0013, docs/operations/real-market-data.md)
 - `AlpacaDailyBars` adapter (19 fixture tests, 16 planted bugs caught), exporter `--source market` (fail-loud, excludes symbols that fail the quality gate, exit codes 0/1/2/3),
   `config/universe.json`, daily workflow `.github/workflows/market-data.yml` (refuses to run in a public repo), web: delayed/real banner, excluded-symbols panel, mode-aware copy,

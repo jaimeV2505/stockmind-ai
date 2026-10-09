@@ -12,3 +12,8 @@ dist/
 .mypy_cache/
 *.parquet
 .DS_Store
+
+# Provider market data must NEVER be committed (redistribution is not permitted by the provider; this repo is public).
+apps/web/data/market-snapshot*.json
+apps/web/.vercel/
+.vercel/

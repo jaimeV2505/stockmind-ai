@@ -1,38 +1,43 @@
-# Going from demo to real end-of-day data (Alpaca) — runbook
+# Going from demo to real end-of-day data (Alpaca) — runbook (PUBLIC repository variant)
 
-## What this does and does not give you
-Daily bars (completed sessions only), delayed, from Alpaca's **IEX feed** (free plan): NOT the consolidated tape, so volume and the occasional OHLC differ
-from other sources. Indicators, signals, backtests and patterns are computed by the Python engines. No intraday, no real-time, no fundamentals/news yet.
+## Why the data never goes into git
+Alpaca states that its API data cannot be redistributed (support article "Can I redistribute Alpaca API data via my platform?" — "you cannot redistribute Alpaca API data")
+and its Terms limit the content to personal, non-commercial use. This repository is PUBLIC, so committing bars would redistribute them. Therefore:
+- `apps/web/data/market-snapshot*.json` is git-ignored; `tests/integration/test_repo_policy.py` fails CI if one is ever tracked, or if the data workflow gains a
+  commit/push/artifact/cache step, write permission or a pull_request trigger.
+- The workflow `.github/workflows/market-data.yml` exports the data on the Actions runner, builds the Next.js app WITH it and deploys that build straight to Vercel.
+  The data only exists on the runner (deleted at the end) and inside the password-protected deployment.
+- The site is behind HTTP Basic auth (`apps/web/middleware.ts`). With `STOCKMIND_DATA=market` and no strong `SITE_PASSWORD` it answers 503.
+- Actions logs of a public repo are public: the exporter prints only counts/symbols/errors, never bars or keys.
+Personal use only: the Vercel Hobby plan and Alpaca's terms are non-commercial. Showing this to other people would need a data licence that allows display.
 
-## Licensing — read before publishing anything
-Provider terms generally forbid redistributing market data publicly. Therefore: (1) the GitHub repo must be PRIVATE (the refresh workflow refuses to run
-otherwise); (2) the Vercel site is protected by HTTP Basic auth, enforced in `middleware.ts` — with `STOCKMIND_DATA=market` and no strong `SITE_PASSWORD`
-the site answers 503; (3) the Hobby plan is personal/non-commercial only. A public or paid product needs a data licence that permits display/redistribution.
+## What you get
+Completed daily bars, delayed, from Alpaca's IEX feed (NOT the consolidated tape: lower volumes). Indicators, signals, backtests and patterns come from the Python engines.
+No intraday, real-time, fundamentals or news yet. The adapter was verified only against fixtures: the first real run is the real test (failures are loud by design).
 
-## One-time setup
-1. Create an Alpaca account (paper trading is enough for market data) and generate an API key + secret. Never paste them in chat, code or commits.
-2. GitHub -> repo -> Settings -> General -> Danger Zone -> **Change visibility -> Private**.
-3. GitHub -> Settings -> Secrets and variables -> Actions -> add `ALPACA_API_KEY` and `ALPACA_API_SECRET`.
-4. Run the workflow once: Actions -> "Market data refresh" -> Run workflow. Check the log: it lists the symbols written and any EXCLUDED with the reason.
-   If it fails on the first real call, send the log: the adapter was only verified against fixtures, and any difference fails loudly by design.
-5. Edit `config/universe.json` to choose symbols (it maps ticker -> company name; unknown tickers show the ticker as the name).
-6. Vercel -> Project -> Settings -> Environment Variables (Production): `STOCKMIND_DATA=market`, `SITE_PASSWORD=<long random>`, optional `SITE_USER`. Redeploy.
-7. Open the site: browser asks for user/password; banner must read "DATOS REALES DE FIN DE DÍA, CON RETRASO. Fuente: alpaca-iex".
+## One-time setup (in this order)
+1. **Alpaca**: Paper Trading view -> "Your API Keys" -> Generate New Keys. Copy Key ID and Secret immediately (the secret is shown once). Never paste them in chat or files.
+2. **Vercel token and IDs**
+   - Token: Vercel -> Account Settings -> Tokens -> Create (scope: your account/team, expiry of your choice).
+   - Project ID: Vercel -> project `stockmind-ai` -> Settings -> General -> "Project ID".
+   - Org/Team ID: Vercel -> Team Settings -> General -> "Team ID" (for a personal account use the ID shown under Settings -> General of your account).
+3. **GitHub secrets** (repo -> Settings -> Secrets and variables -> Actions): `ALPACA_API_KEY`, `ALPACA_API_SECRET`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
+4. **Push this version first** (it contains `apps/web/vercel.json`, which turns OFF Git-triggered deployments for `main`; from then on production is deployed only by the workflow).
+5. **Vercel -> project -> Settings -> Environment Variables (Production)**: `STOCKMIND_DATA=market`, `SITE_PASSWORD=<random, >= 12 chars>`, optional `SITE_USER` (default `stockmind`).
+   Set these AFTER step 4: a Git-triggered build in market mode would have no data file.
+6. **Actions -> "Market data refresh and deploy" -> Run workflow.** Read the log: step "Export market snapshot" lists the symbols written and any EXCLUDED with the reason;
+   the policy steps fail with an explicit message if a secret or an env var is missing.
+7. Open the production URL: the browser asks for user/password; the banner must read "DATOS REALES DE FIN DE DÍA, CON RETRASO. Fuente: alpaca-iex".
 
-## Local run (optional)
-```bash
-export ALPACA_API_KEY=...  ALPACA_API_SECRET=...
-python3 scripts/export_demo_snapshot.py --source market --symbols SPY,NVDA     # writes apps/web/data/market-snapshot.json
-cd apps/web && STOCKMIND_DATA=market SITE_PASSWORD=some-long-password npm run dev
-```
-Exit codes of the exporter: 0 ok, 1 no symbol passed the quality gate / other error, 2 missing or rejected credentials, 3 provider unavailable.
-It never writes a partial or simulated file on failure.
-
-## Operating notes
-- The scheduled job runs 22:30 UTC Mon-Fri. On market holidays the data simply repeats (no commit if unchanged).
-- Data freshness is shown on every page ("Datos hasta"). If the job fails, the site keeps serving the last good snapshot: check Actions for failures.
-- Rotating keys: update the two secrets; nothing else changes.
+## Everyday operation
+- Scheduled 22:30 UTC Mon-Fri. Code changes no longer deploy on push: run the workflow manually to ship them (or merge and wait for the next schedule).
+- Edit `config/universe.json` to change the symbols (ticker -> company name; unknown tickers show the ticker as the name), push, run the workflow.
+- Rotate keys: change the GitHub secrets (and the Vercel env var for the password), run the workflow.
+- Local run (never commit the output): `ALPACA_API_KEY=... ALPACA_API_SECRET=... python3 scripts/export_demo_snapshot.py --source market`, then
+  `cd apps/web && STOCKMIND_DATA=market SITE_PASSWORD=some-long-password npm run dev`.
+- Exit codes of the exporter: 0 ok, 1 no symbol passed the data-quality gate / other, 2 missing or rejected credentials, 3 provider unavailable. It never writes a partial or simulated file.
 
 ## Known limits / not verified
-Adapter never called against the real API; IEX volumes; split-adjusted prices only (no dividends); daily timeframe only; no delisted symbols (survivorship bias in
-pattern statistics); Basic auth is a stop-gap, not user accounts; SPY/QQQ are ETFs, not the index values.
+Never run against the real Alpaca API or the real Vercel CLI flow (`vercel pull/build/deploy --prebuilt` from the repo root with Root Directory = apps/web is written from the
+public CLI conventions, unverified); `vercel@latest` is unpinned; IEX volumes; split-adjusted prices only; daily bars only; survivorship bias; Basic auth is a stop-gap, not accounts.
+If the first run fails, send the failing step's log text (it contains no keys).

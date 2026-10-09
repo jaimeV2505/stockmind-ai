@@ -20,7 +20,7 @@ python3 ../../scripts/export_demo_snapshot.py --check  # fail if the committed f
 
 ## Real data (end-of-day, Alpaca)
 By default the site serves the simulated demo. To serve real data follow `docs/operations/real-market-data.md` (private repo, Alpaca keys as GitHub secrets,
-`STOCKMIND_DATA=market` + `SITE_PASSWORD` in Vercel). With `STOCKMIND_DATA=market` the site is password-protected and returns 503 if no strong password is set.
+`STOCKMIND_DATA=market` + `SITE_PASSWORD` in Vercel). The repo is public and Alpaca data cannot be redistributed, so the data is built into the deployment by the workflow and never committed. With `STOCKMIND_DATA=market` the site is password-protected and returns 503 if no strong password is set.
 
 ## Deploy on Vercel
 1. Import the GitHub repo. **Root Directory = `apps/web`**. Framework preset: Next.js (auto-detected). No environment variables are needed.

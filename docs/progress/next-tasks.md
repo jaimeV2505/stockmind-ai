@@ -1,5 +1,8 @@
 # Next tasks (ordered)
 
+> Real-data setup now follows docs/operations/real-market-data.md (public-repo variant: 5 secrets + 2 Vercel env vars; code pushes no longer auto-deploy).
+
+
 > Real data path is built but UNVERIFIED against Alpaca: follow docs/operations/real-market-data.md; the first real run is the test. Send the Actions log if it fails.
 
 

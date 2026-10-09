@@ -6,6 +6,9 @@ import { loadSnapshotFile } from "../../../../lib/server-data.ts";
 
 type Params = Promise<{ locale: string; symbol: string }>;
 
+// Only the symbols generated at build time exist; anything else is a 404 (no runtime read of data files).
+export const dynamicParams = false;
+
 export function generateStaticParams() {
   const loaded = loadSnapshotFile();
   return loaded.ok ? LOCALES.flatMap((locale) => loaded.data.symbols.map((s) => ({ locale, symbol: s.symbol }))) : [];
