@@ -18,8 +18,8 @@ dev = ["pytest>=8", "ruff>=0.5"]
 packages = []
 
 [tool.pytest.ini_options]
-pythonpath = ["services/technical-analysis", "services/market-data", "services/portfolio-analytics", "services/signal-engine", "services/backtesting", "services/pattern-recognition"]
-testpaths = ["services/technical-analysis/tests", "services/market-data/tests", "services/portfolio-analytics/tests", "services/signal-engine/tests", "services/backtesting/tests", "services/pattern-recognition/tests", "tests/integration"]
+pythonpath = ["services/technical-analysis", "services/market-data", "services/portfolio-analytics", "services/signal-engine", "services/backtesting", "services/pattern-recognition", "services/notifications", "services/entitlements", "services/news-intelligence", "services/fundamental-analysis"]
+testpaths = ["services/technical-analysis/tests", "services/market-data/tests", "services/portfolio-analytics/tests", "services/signal-engine/tests", "services/backtesting/tests", "services/pattern-recognition/tests", "services/notifications/tests", "services/entitlements/tests", "services/news-intelligence/tests", "services/fundamental-analysis/tests", "tests/integration"]
 
 [tool.ruff]
 line-length = 110

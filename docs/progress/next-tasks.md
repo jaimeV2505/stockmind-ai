@@ -1,4 +1,8 @@
-# Next tasks (ordered) — see docs/progress/audit-2026-10-09.md for finding IDs
+# Next tasks (ordered)
+
+> Session 6 completed the pure-logic modules for alerts, entitlements, news safety and fundamentals. Everything below that needs network, a database,
+> credentials or Node is BLOCKED in the authoring sandbox and should be done with Claude Code on a networked machine.
+ — see docs/progress/audit-2026-10-09.md for finding IDs
 
 0. Run the new suites too: `pip install -e ".[dev]" && pytest` now covers 6 services + tests/integration (pytest/ruff/CI still never executed).
 1. [BLOCKED: needs network] On a networked machine: `pip install -e ".[dev]"`, `ruff check .`, `pytest`, push, confirm both CI matrix legs (py3.12 latest; py3.11 pandas 2.2/numpy 1.26). Fix findings. (H-6, M-5)
@@ -12,3 +16,8 @@
 7. [BLOCKED here: needs network, Node, Docker, Postgres] Milestone 1 of the full-stack prompt: Supabase schema + RLS migrations + RLS **with policy tests**, FastAPI + authz/entitlement tests, Next.js app.
 8. Performance: vectorise/numba Wilder smoothing + `swing_points` before intraday universe scans (L-3). Bound `missing_intraday` output (L-6).
 9. Add `docs/product/MASTER_PROMPT.md` (original spec; user-supplied). Legal: data licences, EU/Swedish regulatory opinion, GDPR.
+10. Provider-facing work (needs credentials/network): Alpaca adapter, EDGAR/FMP fundamentals ingestion (-> `FactStore`), news provider + LLM client wrapping `build_prompt`/`validate_analysis`,
+    email/Telegram/web-push senders implementing `Dispatcher` senders (honour the idempotency key). Each adapter: contract tests + recorded fixtures, then a real-service smoke test.
+11. Persistence: SQL migrations mirroring ADR-0011 (UNIQUE(event_key, channel), conditional status UPDATE, atomic usage counters), RLS policies with policy tests.
+12. Remaining strategies (7), short side, portfolio-level backtests, multiple-testing correction, market-structure detectors.
+13. Load/soak/failure-injection tests and a property-based layer (hypothesis) once dependencies can be installed.

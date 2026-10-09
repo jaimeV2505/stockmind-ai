@@ -9,7 +9,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 make test
 ```
-No pytest? `make test-stdlib` runs the same suites with `unittest`.
+No pytest? `make test-stdlib` (= `scripts/run_stdlib_tests.sh`) runs every service's suite with `unittest` and prints a per-service summary.
 
 ## Layout
 `services/*` = pure-Python domain modules (framework-free). `apps/*` = deployables (not yet implemented).

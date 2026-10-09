@@ -1,6 +1,6 @@
 # Current state (update every session)
 
-Last updated: 2026-10-09 · Session 5 = strategies/scanner, walk-forward, pattern engine; Session 4 = quant engines (risk, signal lifecycle, backtester); Session 3 = independent audit + hardening (claude.ai sandbox: no network, no pytest/ruff/TA-Lib/Docker, no GitHub access)
+Last updated: 2026-10-09 · Session 6 = alerts, entitlements, news safety, point-in-time fundamentals (see docs/progress/reliability-evidence.md); Session 5 = strategies/scanner, walk-forward, pattern engine; Session 4 = quant engines (risk, signal lifecycle, backtester); Session 3 = independent audit + hardening (claude.ai sandbox: no network, no pytest/ruff/TA-Lib/Docker, no GitHub access)
 
 **Read `docs/progress/audit-2026-10-09.md` first. Verdict: NOT production-ready.**
 
@@ -18,15 +18,26 @@ Last updated: 2026-10-09 · Session 5 = strategies/scanner, walk-forward, patter
 - Repo plumbing: `pyproject.toml`, `Makefile`, `docker-compose.yml` (Postgres+pgvector only), `.env.example`,
   `.github/workflows/ci.yml`, CLAUDE.md, docs, ADRs 0001-0006.
 
-## Tests (stdlib `unittest`, Python 3.12.3, numpy 2.4.4, pandas 3.0.2; run at end of session 5)
-- technical-analysis 45 · market-data 43 · portfolio-analytics (risk) 11 · signal-engine 32 · backtesting 33 · pattern-recognition 19 ·
-  tests/integration 2 → **185 passed, 0 failed**.
+## Tests (stdlib `unittest` via `make test-stdlib`, Python 3.12.3, numpy 2.4.4, pandas 3.0.2; run at end of session 6)
+- 280 passed, 0 failed (technical-analysis 45, market-data 43, risk 11, signal-engine 32, backtesting 33, pattern-recognition 19, notifications 29,
+  entitlements 10, news-intelligence 33, fundamental-analysis 20, integration 5). Stable under 5 PYTHONHASHSEED values and 4 TZ settings.
 - Mutation-checked (plant a bug, confirm a test fails, restore): backtester (4 bugs), strategies (4), walk-forward (3), pattern engine (6) -- all caught.
   Two real test-quality problems were found this way and fixed: causality tests that were vacuous because the data produced no entry
   events (OversoldRecovery had 0 entries), and an untested tie-break rule. Causality tests now (a) require a minimum number of events and
   (b) truncate exactly at every trigger bar. NOTE: stale `.pyc` caches can make mutation runs lie; run with `PYTHONDONTWRITEBYTECODE=1`.
 
 - Lint: `ruff` has STILL never been run. An AST-based sweep approximating ruff's default rules (E4/E7/E9/F) found and fixed 8x E702 (semicolons), 1x E731, 1 E701-style stub, and unused imports/locals. It is an approximation: expect some residual ruff findings on the first real run.
+
+## Session 6 additions (pure logic only; no I/O, no providers, no LLM calls, no DB)
+- `stockmind_alerts`: rule evaluation (price cross, RSI threshold, volume spike, strategy signal) with human-readable "why"; `Dispatcher` with idempotency,
+  cooldown, quiet hours (DST-aware), retries with exponential backoff, dead-letter, SKIPPED for unconfigured channels (ADR-0011).
+- `stockmind_entitlements`: FREE/PRO/PREMIUM/ADMIN limits (illustrative numbers), fail-closed checks, feature flags, role vs plan, daily `UsageMeter`.
+- `stockmind_news`: Article model, canonical URLs with SSRF-style rejection, order-aware dedupe, ticker association (no invented symbols), heuristic event labels,
+  untrusted-text sanitiser + injection flags, prompt builder with sentinel, strict LLM-output validator (sources/tickers must come from our own data).
+- `stockmind_fundamentals`: point-in-time fact store, UNAVAILABLE / NOT_MEANINGFUL / OK semantics, growth/margin/P-E, explainable configurable score.
+- `scripts/run_stdlib_tests.sh` (used by `make test-stdlib`) runs every service's tests with one command.
+- Still NOT implemented: provider adapters (Alpaca/Polygon/FMP/EDGAR), LLM client, push/email/Telegram senders, persistence, API, web UI, auth, admin,
+  Stripe, workers/queues, observability, deployment, remaining 7 default strategies, shorts, portfolio-level backtests.
 
 ## Session 5 additions (framework-free, pure Python; still NOT exposed through any API/UI/DB)
 - `stockmind_signals.strategies`: OversoldRecovery, MovingAverageCrossover, BullishBreakout (v1.0.0), each deterministic, causal, parameter-validated,
