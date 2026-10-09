@@ -10,7 +10,10 @@ The repository is the source of truth, not chat history. Start with `docs/progre
 - Indicators are deterministic math (numpy/pandas). LLMs only explain/summarise; they never compute numbers, execute trades, or override risk rules.
 - All indicator code must be causal (no look-ahead); the causal tests (many truncation cut points) must cover every new indicator. Sparse/pivot-style signals are reported on their confirmation bar (ADR-0006).
 - Before trusting new tests, mutation-check them: plant a bug, confirm a test fails, restore.
-- Session/close helpers raise on non-trading days (ADR-0005); never fabricate sessions.
+- Session/close helpers raise on non-trading days (ADR-0005); never fabricate sessions. Calendar functions take `date`, never `datetime`.
+- Validate at the boundary and reject, don't repair (ADR-0007). Indicators propagate NaN; never skip or fill bars silently.
+- Code must work on pandas>=2.2 AND pandas 3 (read-only `.to_numpy()` views: copy before writing).
+- The latest audit is `docs/progress/audit-2026-10-09.md`; its open findings are the priority backlog.
 - No secrets in git. No real trading in the initial release. No billing activation without explicit approval.
 - Timestamps: timezone-aware UTC internally; convert to America/New_York only for market-session logic.
 

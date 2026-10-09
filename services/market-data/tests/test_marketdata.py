@@ -1,6 +1,6 @@
 import unittest
 from dataclasses import replace
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 
 from stockmind_marketdata import (
     AdjustmentStatus, Candle, DataMode, DemoProvider, MarketDataProvider, Timeframe,

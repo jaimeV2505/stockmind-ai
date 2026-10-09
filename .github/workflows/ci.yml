@@ -3,15 +3,25 @@ on:
   push: { branches: [main] }
   pull_request:
 permissions: { contents: read }
+concurrency: { group: "ci-${{ github.ref }}", cancel-in-progress: true }
 jobs:
   python:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { python: "3.12", pins: "" }                                   # latest numpy/pandas
+          - { python: "3.11", pins: "pandas==2.2.* numpy==1.26.*" }        # oldest supported combination
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4          # TODO: pin actions to commit SHAs (supply-chain hardening)
       - uses: actions/setup-python@v5
-        with: { python-version: "3.12", cache: pip }
+        with: { python-version: "${{ matrix.python }}", cache: pip }
       - run: pip install -e ".[dev]"
+      - if: matrix.pins != ''
+        run: pip install ${{ matrix.pins }}
       - run: ruff check .
       - run: python -m pytest -v
   # TODO(Phase 1): web (lint, typecheck, build, playwright), api (pytest + migrations check),
-  # dependency scanning, secret scanning, TA-Lib cross-validation job.
+  # dependency scanning (pip-audit), secret scanning (gitleaks), TA-Lib cross-validation job.

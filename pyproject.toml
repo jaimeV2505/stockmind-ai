@@ -1,11 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "stockmind-ai"
 version = "0.0.1"
 requires-python = ">=3.11"
-dependencies = ["numpy>=1.26", "pandas>=2.2"]
+# tzdata: zoneinfo has no system tz database on Windows / minimal images; the market calendar needs America/New_York.
+dependencies = ["numpy>=1.26", "pandas>=2.2", "tzdata>=2024.1"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]
+
+# Monorepo root is NOT an importable package: services are added to the path via pytest `pythonpath`.
+# (Without this, setuptools flat-layout discovery fails on the multiple top-level dirs and `pip install -e .` breaks CI.)
+[tool.setuptools]
+packages = []
 
 [tool.pytest.ini_options]
 pythonpath = ["services/technical-analysis", "services/market-data"]
@@ -14,3 +24,7 @@ testpaths = ["services/technical-analysis/tests", "services/market-data/tests"]
 [tool.ruff]
 line-length = 110
 extend-exclude = ["apps/web"]
+
+[tool.ruff.lint]
+# E741 (ambiguous name `l`): `h, l, c` / `o, h, l, c` are the standard OHLC shorthand in this codebase.
+ignore = ["E741"]

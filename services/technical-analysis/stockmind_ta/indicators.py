@@ -6,15 +6,20 @@ Conventions (all documented because they differ between vendors):
 - EMA is seeded with the SMA of the first `n` valid values (classic convention).
 - RSI / ATR use Wilder smoothing: first value = simple mean, then (prev*(n-1)+x)/n.
 - Bollinger uses population standard deviation (ddof=0).
+- NaN inputs are NEVER silently skipped (audit A-06). Recursive indicators (EMA family, RSI, ATR, ADX, MACD, OBV)
+  stay NaN from the first NaN onward (fail closed; the caller must repair/re-seed the data). Rolling indicators
+  recover once the window no longer contains the NaN. VWAP is NaN for the rest of the affected session.
 """
 from __future__ import annotations
+
+import numbers
 
 import numpy as np
 import pandas as pd
 
 
 def _check_n(n: int) -> None:
-    if not isinstance(n, int) or n < 1:
+    if isinstance(n, bool) or not isinstance(n, numbers.Integral) or n < 1:
         raise ValueError("period must be a positive integer")
 
 
@@ -94,14 +99,18 @@ def roc(close: pd.Series, n: int = 12) -> pd.Series:
 
 
 def obv(close: pd.Series, volume: pd.Series) -> pd.Series:
-    direction = np.sign(close.diff()).fillna(0.0)
-    return (direction * volume).cumsum()
+    """On-balance volume starting at 0. A NaN close/volume makes OBV NaN from that bar on (never skipped)."""
+    flow = np.array((np.sign(close.diff()) * volume).to_numpy(dtype=float), copy=True)  # pandas>=3 returns read-only views
+    if len(flow):
+        flow[0] = 0.0 if not np.isnan(close.iloc[0]) else np.nan
+    return pd.Series(np.cumsum(flow), index=close.index)  # numpy cumsum propagates NaN
 
 
 def relative_volume(volume: pd.Series, n: int = 20) -> pd.Series:
     """Volume / mean volume of the PREVIOUS n bars (current bar excluded to avoid self-dilution)."""
     _check_n(n)
-    return volume / sma(volume, n).shift(1)
+    base = sma(volume, n).shift(1)
+    return (volume / base).where(base > 0)  # zero/NaN baseline -> NaN, never inf
 
 
 # --------------------------------------------------------------------------------------
@@ -192,10 +201,13 @@ def vwap(high: pd.Series, low: pd.Series, close: pd.Series, volume: pd.Series,
          session: pd.Series) -> pd.Series:
     """Session-anchored VWAP: cumulative sum(TP*vol)/sum(vol), reset whenever `session` changes.
     `session` is a label aligned to the bars (e.g. the US/Eastern trade date). Zero cumulative volume -> NaN."""
+    if session.isna().any():
+        raise ValueError("session labels must not contain NaN")
     tp = (high + low + close) / 3.0
-    pv = (tp * volume).groupby(session).cumsum()
-    vv = volume.groupby(session).cumsum()
-    return (pv / vv).where(vv > 0)
+    bad = (tp.isna() | volume.isna()).astype("int8").groupby(session).cummax().astype(bool)
+    pv = (tp * volume).fillna(0.0).groupby(session).cumsum()
+    vv = volume.fillna(0.0).groupby(session).cumsum()
+    return (pv / vv).where((vv > 0) & ~bad)  # a bad bar poisons the rest of ITS session, not later sessions
 
 
 def swing_points(high: pd.Series, low: pd.Series, k: int = 2) -> pd.DataFrame:

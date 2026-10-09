@@ -1,12 +1,13 @@
-"""Deterministic simulated provider. Output is ALWAYS labelled SIMULATED; it is never a fallback."""
+"""Deterministic simulated provider. Output is ALWAYS labelled SIMULATED; it is never a fallback.
+Only completed sessions (close <= `now`) are emitted."""
 from __future__ import annotations
 
 import math
 import random
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Sequence
 
-from .calendar import is_trading_day, session_open_utc, to_market_time
+from .calendar import is_trading_day, session_close_utc, session_open_utc, to_market_time
 from .models import AdjustmentStatus, Candle, DataMode, Timeframe
 
 
@@ -31,6 +32,8 @@ class DemoProvider:
         last = to_market_time(end).date()
         while d <= last:
             if is_trading_day(d):
+                if session_close_utc(d) > self._now:
+                    break  # never emit future or still-forming bars
                 ret = rng.gauss(0.0004, 0.015)
                 o = price
                 c = max(0.01, o * math.exp(ret))

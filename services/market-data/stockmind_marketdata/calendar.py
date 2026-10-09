@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta, timezone
 from functools import lru_cache
+from types import MappingProxyType
+from typing import Mapping
 from zoneinfo import ZoneInfo
 
 from .models import Timeframe
@@ -70,14 +72,21 @@ def _observed(d: date) -> date:
     return d
 
 
+def _require_date(d: object) -> None:
+    """datetime is a date subclass but never equals a date, so `datetime in holidays` is silently False
+    and a holiday would be reported as a trading day. Reject it explicitly."""
+    if isinstance(d, datetime) or not isinstance(d, date):
+        raise TypeError(f"expected datetime.date (not datetime), got {type(d).__name__}")
+
+
 def _check_year(year: int) -> None:
     if not MIN_YEAR <= year <= MAX_YEAR:
         raise ValueError(f"NYSE calendar supports {MIN_YEAR}-{MAX_YEAR}, got {year}")
 
 
 @lru_cache(maxsize=None)
-def holidays(year: int) -> dict[date, str]:
-    """Full-day NYSE closures falling in `year` (observed dates)."""
+def holidays(year: int) -> Mapping[date, str]:
+    """Full-day NYSE closures falling in `year` (observed dates). Read-only: the result is cached and shared."""
     _check_year(year)
     h: dict[date, str] = {}
     ny = date(year, 1, 1)
@@ -96,16 +105,17 @@ def holidays(year: int) -> dict[date, str]:
     for d in AD_HOC_CLOSURES:
         if d.year == year:
             h[d] = "Unscheduled closure"
-    return {d: n for d, n in h.items() if d.year == year}
+    return MappingProxyType({d: n for d, n in h.items() if d.year == year})
 
 
 def is_trading_day(d: date) -> bool:
+    _require_date(d)
     _check_year(d.year)
     return d.weekday() < 5 and d not in holidays(d.year)
 
 
 def is_early_close(d: date) -> bool:
-    if not is_trading_day(d):
+    if not is_trading_day(d):  # also type-checks d
         return False
     if d == _nth_weekday(d.year, 11, 3, 4) + timedelta(days=1):  # day after Thanksgiving
         return True
@@ -133,6 +143,8 @@ def session_close_utc(d: date) -> datetime:
 
 
 def trading_days(start: date, end: date) -> list[date]:
+    _require_date(start)
+    _require_date(end)
     out, d = [], start
     while d <= end:
         if is_trading_day(d):
@@ -152,3 +164,15 @@ def expected_intraday_opens_utc(d: date, timeframe: Timeframe) -> list[datetime]
         out.append(t)
         t += step
     return out
+
+
+def bar_close_utc(timeframe: Timeframe, market_ts: datetime) -> datetime:
+    """Real close time of a bar opened at `market_ts` (UTC). 1d uses the session close (16:00 ET, or 13:00 on early
+    closes), NOT open+24h. Intraday 1m/5m/15m: open + length. 1h and 1w are unsupported (alignment unconfirmed)."""
+    if market_ts.tzinfo is None:
+        raise ValueError("naive datetimes are not accepted")
+    if timeframe is Timeframe.D1:
+        return session_close_utc(to_market_time(market_ts).date())
+    if timeframe in _INTRADAY_MINUTES:
+        return market_ts + timedelta(minutes=_INTRADAY_MINUTES[timeframe])
+    raise NotImplementedError(f"bar close not supported for {timeframe.value}")

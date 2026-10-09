@@ -1,9 +1,15 @@
 """Candle model. Every candle carries the provenance fields required by the product spec."""
 from __future__ import annotations
 
+import math
+import numbers
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+
+_SYMBOL_RE = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,9}$")   # e.g. AAPL, BRK.B, BF-B. Adapters must normalise.
+_CURRENCY_RE = re.compile(r"^[A-Z]{3}$")
 
 
 class Timeframe(str, Enum):
@@ -58,12 +64,30 @@ class Candle:
     volume: float
 
     def __post_init__(self) -> None:
+        # identifiers: reject (never silently normalise) so bad adapter output is caught at the boundary
+        if not isinstance(self.symbol, str) or not _SYMBOL_RE.match(self.symbol):
+            raise ValueError(f"invalid symbol {self.symbol!r} (expected upper-case, e.g. 'AAPL', 'BRK.B')")
+        if not isinstance(self.exchange, str) or not self.exchange.strip() or self.exchange != self.exchange.strip():
+            raise ValueError("exchange must be a non-empty, trimmed string")
+        if not isinstance(self.source, str) or not self.source.strip():
+            raise ValueError("source must be a non-empty string")
+        if not isinstance(self.currency, str) or not _CURRENCY_RE.match(self.currency):
+            raise ValueError(f"invalid currency {self.currency!r} (expected ISO-4217 upper-case, e.g. 'USD')")
+        # numbers: finite reals only. NaN/inf would pass every ordering comparison below (all False) and poison indicators.
+        for name in ("open", "high", "low", "close", "volume"):
+            v = getattr(self, name)
+            if isinstance(v, bool) or not isinstance(v, numbers.Real):
+                raise ValueError(f"{name} must be a real number, got {type(v).__name__}")
+            if not math.isfinite(v):
+                raise ValueError(f"{name} must be finite, got {v!r}")
         for name in ("market_ts", "ingested_at"):
             v = getattr(self, name)
-            if v.tzinfo is None or v.utcoffset() is None:
-                raise ValueError(f"{name} must be timezone-aware")
+            if not isinstance(v, datetime) or v.tzinfo is None or v.utcoffset() is None:
+                raise ValueError(f"{name} must be a timezone-aware datetime")
             if v.utcoffset() != timedelta(0):
                 raise ValueError(f"{name} must be normalised to UTC")
+        if self.ingested_at < self.market_ts:
+            raise ValueError("a candle cannot be ingested before its open time (clock skew or fabricated data)")
         if self.high < max(self.open, self.close, self.low):
             raise ValueError("high must be >= open, close and low")
         if self.low > min(self.open, self.close, self.high):
@@ -77,12 +101,14 @@ class Candle:
 
     @property
     def key(self) -> tuple:
-        """Idempotency key: one candle per (symbol, timeframe, open time, source, adjustment)."""
-        return (self.symbol, self.timeframe, self.market_ts, self.source, self.adjustment)
+        """Idempotency key: one candle per (symbol, exchange, timeframe, open time, source, adjustment)."""
+        return (self.symbol, self.exchange, self.timeframe, self.market_ts, self.source, self.adjustment)
 
     def freshness(self) -> timedelta:
-        """Lag between the candle's nominal close and when we ingested it (negative = still forming)."""
-        return self.ingested_at - (self.market_ts + self.timeframe.nominal_delta)
+        """Lag between the bar's real close (session-aware, early closes included) and ingestion.
+        Negative means the bar was still forming when ingested. Supported for 1m/5m/15m/1d only."""
+        from .calendar import bar_close_utc  # local import: calendar imports this module
+        return self.ingested_at - bar_close_utc(self.timeframe, self.market_ts)
 
 
 def utc(dt: datetime) -> datetime:

@@ -1,6 +1,8 @@
 # Current state (update every session)
 
-Last updated: 2026-10-09 · Session 2 (claude.ai sandbox: no network, no pytest/ruff/TA-Lib/Docker, no GitHub access)
+Last updated: 2026-10-09 · Session 3 = independent audit + hardening (claude.ai sandbox: no network, no pytest/ruff/TA-Lib/Docker, no GitHub access)
+
+**Read `docs/progress/audit-2026-10-09.md` first. Verdict: NOT production-ready.**
 
 ## Implemented
 - Monorepo skeleton (directories per spec; unimplemented ones hold `.gitkeep` only).
@@ -16,8 +18,9 @@ Last updated: 2026-10-09 · Session 2 (claude.ai sandbox: no network, no pytest/
 - Repo plumbing: `pyproject.toml`, `Makefile`, `docker-compose.yml` (Postgres+pgvector only), `.env.example`,
   `.github/workflows/ci.yml`, CLAUDE.md, docs, ADRs 0001-0006.
 
-## Tests (stdlib `unittest`, Python 3.12.3, numpy 2.4.4, pandas 3.0.2; run at end of session 2)
-- technical-analysis: **37 passed**. market-data: **28 passed**. Total 65, 0 failures.
+## Tests (stdlib `unittest`, Python 3.12.3, numpy 2.4.4, pandas 3.0.2; run at end of session 3)
+- technical-analysis: **45 passed**. market-data: **43 passed**. Total 88, 0 failures.
+- Session-3 regression tests were run against the unfixed code first: 20 failures; 0 after the fixes.
 - Mutation-checked: a planted look-ahead in `swing_points` and a planted wrong DM rule in ADX were both detected
   (the first was initially MISSED by a single-cut causality test; tests now truncate at many cut points).
 - Independent references: RSI (pure-Python Wilder), ADX (Wilder's original running-sum form), plus hand-computed CCI/MFI/VWAP/HV/OBV/Bollinger.
@@ -34,8 +37,17 @@ Last updated: 2026-10-09 · Session 2 (claude.ai sandbox: no network, no pytest/
   scanner, signals, backtester, news, alerts).
 - No real provider adapter. Nothing deployed. Not pushed to GitHub (no access from the authoring sandbox).
 
-## Behaviour changes this session
-- `session_open_utc` / `session_close_utc` raise `ValueError` on non-trading days (previously nominal). `DemoProvider` now skips exchange holidays.
+## Session 3 hardening (details in the audit report)
+- Candle: finite/valid-identifier/ingest-time validation; `key` includes exchange. `freshness()` now session-aware.
+- Calendar: `date`-only API (datetime -> TypeError), immutable holiday table, `bar_close_utc`.
+- Quality: single symbol/exchange/timeframe; flags mixed provenance, forming bars, misaligned 1d stamps.
+- Indicators: OBV/VWAP/relative_volume NaN-safety; numpy-int periods accepted.
+- Repo: CI-breaking packaging fixed (install verified in fresh venv), ruff config, tzdata dep, CI version matrix, compose DB bound to loopback.
+
+## Behaviour changes in sessions 2-3
+- `session_open_utc` / `session_close_utc` raise `ValueError` on non-trading days (previously nominal). `DemoProvider` skips holidays and emits only completed sessions.
+- Calendar functions raise `TypeError` for `datetime`. `Candle` rejects previously accepted malformed data. `validate_series` raises on multi-symbol input.
+- `Candle.key` gained `exchange` (no persisted keys exist yet).
   No external consumers existed, so no migration needed (ADR-0005).
 
 ## Blockers / external actions

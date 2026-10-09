@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from stockmind_ta import (
-    adx, cci, historical_volatility, keltner, mfi, rsi, stoch_rsi, swing_points, vwap, atr, ema,
+    adx, atr, cci, historical_volatility, keltner, mfi, rsi, stoch_rsi, swing_points, vwap,
 )
 
 
