@@ -122,7 +122,7 @@ def run_backtest(bars: pd.DataFrame, entries: pd.Series, exits: pd.Series | None
     _validate_inputs(bars, entries, exits)
 
     n = len(bars)
-    op, hi, lo, cl = (bars[k].to_numpy(dtype=float) for k in ("open", "high", "low", "close"))
+    op, lo, cl = (bars[k].to_numpy(dtype=float) for k in ("open", "low", "close"))
     ent = entries.to_numpy()
     ext = exits.to_numpy() if exits is not None else np.zeros(n, dtype=bool)
     slip = config.slippage_bps / 1e4

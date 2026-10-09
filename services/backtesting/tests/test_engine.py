@@ -207,8 +207,10 @@ class TestInvariants(unittest.TestCase):
             part = run_backtest(b.iloc[:cut], en.iloc[:cut], ex.iloc[:cut], c)
             np.testing.assert_allclose(full.equity.iloc[:cut - 1].to_numpy(), part.equity.iloc[:cut - 1].to_numpy(),
                                        err_msg=f"equity @cut={cut}")
-            sig = lambda r: [(t.entry_idx, t.exit_idx, t.exit_reason, round(t.pnl, 9)) for t in r.trades if t.exit_idx < cut - 1]
-            self.assertEqual(sig(full), sig(part), f"trades @cut={cut}")
+            def settled(r, cut=cut):
+                return [(t.entry_idx, t.exit_idx, t.exit_reason, round(t.pnl, 9)) for t in r.trades if t.exit_idx < cut - 1]
+
+            self.assertEqual(settled(full), settled(part), f"trades @cut={cut}")
 
 
 class TestInputValidation(unittest.TestCase):
@@ -222,12 +224,17 @@ class TestInputValidation(unittest.TestCase):
         return run_backtest(bars, en, ex, c)
 
     def test_bad_data_rejected(self):
-        bad_nan = self.b.copy(); bad_nan.iloc[2, 3] = np.nan
-        bad_zero = self.b.copy(); bad_zero.iloc[2, 0] = 0.0
-        bad_hl = self.b.copy(); bad_hl.iloc[2, 1] = 1.0
-        naive = self.b.copy(); naive.index = naive.index.tz_localize(None)
+        bad_nan = self.b.copy()
+        bad_nan.iloc[2, 3] = np.nan
+        bad_zero = self.b.copy()
+        bad_zero.iloc[2, 0] = 0.0
+        bad_hl = self.b.copy()
+        bad_hl.iloc[2, 1] = 1.0
+        naive = self.b.copy()
+        naive.index = naive.index.tz_localize(None)
         unsorted = self.b.iloc[::-1]
-        dup = self.b.copy(); dup.index = [dup.index[0]] * len(dup)
+        dup = self.b.copy()
+        dup.index = [dup.index[0]] * len(dup)
         for name, d in dict(nan=bad_nan, zero=bad_zero, hl=bad_hl, naive=naive, unsorted=unsorted, dup=dup).items():
             with self.subTest(name), self.assertRaises(ValueError):
                 self.run_(bars=d, en=pd.Series(flags(len(d), 1), index=d.index))

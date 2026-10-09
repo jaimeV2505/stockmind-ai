@@ -9,7 +9,8 @@ The repository is the source of truth, not chat history. Start with `docs/progre
 - Simulated data is always labelled (`DataMode.SIMULATED`, source ends in `-simulated`) and never substitutes silently for live data.
 - Indicators are deterministic math (numpy/pandas). LLMs only explain/summarise; they never compute numbers, execute trades, or override risk rules.
 - All indicator code must be causal (no look-ahead); the causal tests (many truncation cut points) must cover every new indicator. Sparse/pivot-style signals are reported on their confirmation bar (ADR-0006).
-- Before trusting new tests, mutation-check them: plant a bug, confirm a test fails, restore.
+- Before trusting new tests, mutation-check them: plant a bug, confirm a test fails, restore (run with `PYTHONDONTWRITEBYTECODE=1`; stale .pyc can hide the mutation). Causality tests must guarantee that the data actually produces entry/exit events and cut at every trigger bar.
+- Pattern search: a candidate is eligible only if its outcome was known at query time; similarity is never a probability (ADR-0010). Validation: parameters are chosen on train data only (ADR-0009).
 - Session/close helpers raise on non-trading days (ADR-0005); never fabricate sessions. Calendar functions take `date`, never `datetime`.
 - Validate at the boundary and reject, don't repair (ADR-0007). Indicators propagate NaN; never skip or fill bars silently.
 - Code must work on pandas>=2.2 AND pandas 3 (read-only `.to_numpy()` views: copy before writing).

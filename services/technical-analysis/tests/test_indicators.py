@@ -144,7 +144,7 @@ class TestNoLookahead(unittest.TestCase):
 
     def test_all_indicators_are_causal(self):
         rng = np.random.default_rng(7)
-        n, cut = 300, 220
+        n = 300
         close = pd.Series(100 + rng.normal(0, 1, n).cumsum())
         high, low = close + rng.uniform(0.1, 1, n), close - rng.uniform(0.1, 1, n)
         vol = pd.Series(rng.uniform(1e5, 2e5, n))

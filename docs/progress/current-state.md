@@ -1,6 +1,6 @@
 # Current state (update every session)
 
-Last updated: 2026-10-09 · Session 4 = quant engines (risk, signal lifecycle, backtester); Session 3 = independent audit + hardening (claude.ai sandbox: no network, no pytest/ruff/TA-Lib/Docker, no GitHub access)
+Last updated: 2026-10-09 · Session 5 = strategies/scanner, walk-forward, pattern engine; Session 4 = quant engines (risk, signal lifecycle, backtester); Session 3 = independent audit + hardening (claude.ai sandbox: no network, no pytest/ruff/TA-Lib/Docker, no GitHub access)
 
 **Read `docs/progress/audit-2026-10-09.md` first. Verdict: NOT production-ready.**
 
@@ -18,26 +18,27 @@ Last updated: 2026-10-09 · Session 4 = quant engines (risk, signal lifecycle, b
 - Repo plumbing: `pyproject.toml`, `Makefile`, `docker-compose.yml` (Postgres+pgvector only), `.env.example`,
   `.github/workflows/ci.yml`, CLAUDE.md, docs, ADRs 0001-0006.
 
-## Tests (stdlib `unittest`, Python 3.12.3, numpy 2.4.4, pandas 3.0.2; run at end of session 4)
-- technical-analysis 45 · market-data 43 · portfolio-analytics (risk) 11 · signal-engine 11 · backtesting 21 → **131 passed, 0 failed**.
-- Session-3 regression tests were run against the unfixed code first: 20 failures; 0 after the fixes.
-- Session-4 backtester mutation-checked: 4 planted bugs (same-bar execution = look-ahead, stop-gap fill at stop, favourable sell slippage,
-  missing exit commission) were each caught by at least one test.
-- Mutation-checked: a planted look-ahead in `swing_points` and a planted wrong DM rule in ADX were both detected
-  (the first was initially MISSED by a single-cut causality test; tests now truncate at many cut points).
-- Independent references: RSI (pure-Python Wilder), ADX (Wilder's original running-sum form), plus hand-computed CCI/MFI/VWAP/HV/OBV/Bollinger.
-- Calendar anchors: Easter 2024/2025/2026/2038, full 2026 holiday list, 2023 = 250 and 2024 = 252 trading days, weekend-observance edge cases.
+## Tests (stdlib `unittest`, Python 3.12.3, numpy 2.4.4, pandas 3.0.2; run at end of session 5)
+- technical-analysis 45 · market-data 43 · portfolio-analytics (risk) 11 · signal-engine 32 · backtesting 33 · pattern-recognition 19 ·
+  tests/integration 2 → **185 passed, 0 failed**.
+- Mutation-checked (plant a bug, confirm a test fails, restore): backtester (4 bugs), strategies (4), walk-forward (3), pattern engine (6) -- all caught.
+  Two real test-quality problems were found this way and fixed: causality tests that were vacuous because the data produced no entry
+  events (OversoldRecovery had 0 entries), and an untested tie-break rule. Causality tests now (a) require a minimum number of events and
+  (b) truncate exactly at every trigger bar. NOTE: stale `.pyc` caches can make mutation runs lie; run with `PYTHONDONTWRITEBYTECODE=1`.
 
-## NOT verified / known limitations
-- `pytest`, `ruff`, Docker and the GitHub Actions workflow have **never been run** (tooling unavailable in both sessions).
-- No indicator has been cross-validated against TA-Lib or any third-party library yet (only independent re-implementations).
-  The "published RSI example" values are from memory and used only as a loose sanity check (delta 0.1).
-- NYSE `AD_HOC_CLOSURES` (2012-10-29/30, 2018-12-05, 2025-01-09) and the early-close rules are from memory; verify against the
-  official NYSE calendar. Calendar is regular-session only; 1h and 1w gap detection NOT implemented (`gap_check_performed=False`).
-- Not yet implemented (see also the Session 4 list above): Supertrend, Ichimoku, SMA 100/200 convenience sets, moving-average cross detection, support/resistance zones,
-  market-structure (BOS, HH/HL), patterns, multi-timeframe aggregation, and everything in Phases 1-6 (web, API, auth, DB, providers,
-  scanner, signals, backtester, news, alerts).
-- No real provider adapter. Nothing deployed. Not pushed to GitHub (no access from the authoring sandbox).
+- Lint: `ruff` has STILL never been run. An AST-based sweep approximating ruff's default rules (E4/E7/E9/F) found and fixed 8x E702 (semicolons), 1x E731, 1 E701-style stub, and unused imports/locals. It is an approximation: expect some residual ruff findings on the first real run.
+
+## Session 5 additions (framework-free, pure Python; still NOT exposed through any API/UI/DB)
+- `stockmind_signals.strategies`: OversoldRecovery, MovingAverageCrossover, BullishBreakout (v1.0.0), each deterministic, causal, parameter-validated,
+  with supporting/contradicting evidence; `decide()` returns a Signal or a NoSignal with a reason (insufficient history / no trigger / bad last bar);
+  signals carry `version_tag = version+param-hash` so different parameterisations never share an idempotency key; `StrategyRegistry`
+  (versioned, enable/disable, numeric version ordering, no overwrite); `scan()` over a universe (deterministic order, per-symbol error isolation, idempotent with the registry).
+- `stockmind_backtest.validation`: `walk_forward` and `parameter_sensitivity` per ADR-0009.
+- `stockmind_patterns`: shape normalisation, DTW, PatternIndex (forward return/MFE/MAE/regime), leakage-safe query, `summarize` per ADR-0010.
+- `tests/integration`: strategies -> backtest -> risk sizing on SIMULATED demo data (accounting identity, reproducibility hash).
+- Still unimplemented in this area: short side / multi-symbol portfolio backtests, more strategies (trend continuation, consolidation breakout, bearish
+  breakdown, earnings volatility monitoring, high relative volume), multiple-testing corrections, market-structure detectors (BOS, S/R zones, chart patterns),
+  pgvector-backed similarity search, gap-risk/earnings warnings, correlation and sector exposure.
 
 ## Session 4 additions (framework-free, pure Python; NOT yet exposed through any API/UI/DB)
 - `services/portfolio-analytics/stockmind_risk`: ATR stop reference, risk/reward with geometry validation, whole-share position sizing
